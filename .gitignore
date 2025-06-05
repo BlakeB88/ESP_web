@@ -1,0 +1,32 @@
+# ── Byte‐compiled / optimized / temporary files ────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ── macOS / Finder artifacts ─────────────────────────────────────────────────────
+.DS_Store
+
+# ── IDE / editor folders ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── Logs and debug artifacts ────────────────────────────────────────────────────
+*.log
+debug_swimcloud_page.html
+
+# ── Excel / spreadsheet outputs ─────────────────────────────────────────────────
+#    We don’t want to commit generated .xlsx files—only the code that produces them.
+*.xlsx
+*.xls
+
+# ── Environment / virtual‐env folders (if you ever create one locally) ─────────────
+venv/
+env/
+.venv/
+
+# ── Any other large or personal files you don’t want in version control ────────────
+# For example, if you sometimes generate a local “_cache” folder or temporary data dumps:
+# data_cache/
+# *.tmp
