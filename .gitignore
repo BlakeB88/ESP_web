@@ -30,3 +30,4 @@ env/
 # For example, if you sometimes generate a local “_cache” folder or temporary data dumps:
 # data_cache/
 # *.tmp
+*.csv
