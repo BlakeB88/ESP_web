@@ -3,6 +3,175 @@ import pandas as pd
 from Scraper.swimmer_scraper import scrape_and_save
 from Scraper.data_processor import lineup_spread
 from datetime import datetime
+import numpy as np
+
+
+def time_to_seconds(time_str):
+    """Convert time string to seconds for comparison"""
+    try:
+        if pd.isna(time_str) or time_str == '':
+            return float('inf')
+        if ':' in str(time_str):
+            parts = str(time_str).split(':')
+            minutes = int(parts[0])
+            seconds = float(parts[1])
+            return minutes * 60 + seconds
+        else:
+            return float(time_str)
+    except (ValueError, IndexError):
+        return float('inf')  # Return infinity for invalid times
+
+
+def pivot_to_long_format(pivot_df):
+    """
+    Convert pivot table format to long format for lineup assignment
+    """
+    long_data = []
+    
+    # Get all event columns (everything except 'Swimmer')
+    event_columns = [col for col in pivot_df.columns if col != 'Swimmer']
+    
+    for _, row in pivot_df.iterrows():
+        swimmer = row['Swimmer']
+        for event in event_columns:
+            time_value = row[event]
+            # Only include valid times (not NaN, not empty)
+            if pd.notna(time_value) and str(time_value).strip() != '':
+                long_data.append({
+                    'Swimmer': swimmer,
+                    'Event': event,
+                    'Time': str(time_value).strip()
+                })
+    
+    return pd.DataFrame(long_data)
+
+
+def round_robin_assignment(times_df, max_events_per_swimmer=4, swimmers_per_event=4):
+    """
+    Assign swimmers to events using round-robin approach for balanced talent distribution
+    """
+    if times_df.empty:
+        raise Exception("No swimmer data provided")
+    
+    # Check if we need to convert from pivot format
+    if 'Event' not in times_df.columns:
+        print("→ Converting pivot table format to long format...")
+        times_df = pivot_to_long_format(times_df)
+        print(f"→ Converted to {len(times_df)} swimmer-event combinations")
+    
+    if times_df.empty:
+        raise Exception("No valid swimmer-event combinations found after conversion")
+    
+    # Get all unique events
+    all_events = times_df['Event'].unique()
+    print(f"→ Found {len(all_events)} events: {list(all_events)}")
+    
+    # Initialize tracking structures
+    event_assignments = {event: [] for event in all_events}
+    swimmer_event_counts = {}
+    
+    # Create a sorted list of all swimmer-event combinations by performance
+    swimmer_event_pairs = []
+    
+    for _, row in times_df.iterrows():
+        swimmer = row['Swimmer']
+        event = row['Event']
+        time = row['Time']
+        time_seconds = time_to_seconds(time)
+        
+        # Skip invalid times
+        if time_seconds == float('inf'):
+            continue
+        
+        swimmer_event_pairs.append({
+            'Swimmer': swimmer,
+            'Event': event,
+            'Time': time,
+            'Time_Seconds': time_seconds
+        })
+    
+    print(f"→ Processing {len(swimmer_event_pairs)} valid swimmer-event combinations")
+    
+    # Sort by time performance (fastest first)
+    swimmer_event_pairs.sort(key=lambda x: x['Time_Seconds'])
+    
+    # Round-robin assignment
+    assignment_round = 0
+    events_list = list(all_events)
+    
+    print("→ Starting round-robin assignment...")
+    
+    while True:
+        assignments_made = False
+        
+        # Go through each event in round-robin fashion
+        for event_idx, current_event in enumerate(events_list):
+            # Skip if this event already has enough swimmers
+            if len(event_assignments[current_event]) >= swimmers_per_event:
+                continue
+            
+            # Find the best available swimmer for this event
+            best_swimmer = None
+            best_pair_idx = None
+            
+            for idx, pair in enumerate(swimmer_event_pairs):
+                if pair['Event'] != current_event:
+                    continue
+                
+                swimmer = pair['Swimmer']
+                
+                # Check if swimmer is available (hasn't reached max events)
+                current_events = swimmer_event_counts.get(swimmer, 0)
+                if current_events >= max_events_per_swimmer:
+                    continue
+                
+                # Check if swimmer is already assigned to this event
+                if swimmer in [s['Swimmer'] for s in event_assignments[current_event]]:
+                    continue
+                
+                # This is our best available swimmer for this event
+                best_swimmer = pair
+                best_pair_idx = idx
+                break
+            
+            # Assign the best swimmer if found
+            if best_swimmer:
+                event_assignments[current_event].append(best_swimmer)
+                swimmer_event_counts[best_swimmer['Swimmer']] = swimmer_event_counts.get(best_swimmer['Swimmer'], 0) + 1
+                # Remove this pair so it's not considered again
+                swimmer_event_pairs.pop(best_pair_idx)
+                assignments_made = True
+                
+                print(f"→ Assigned {best_swimmer['Swimmer']} to {current_event} (Time: {best_swimmer['Time']})")
+        
+        # If no assignments were made in this round, we're done
+        if not assignments_made:
+            break
+        
+        assignment_round += 1
+        
+        # Safety check to prevent infinite loops
+        if assignment_round > 100:
+            print("Warning: Assignment process terminated after 100 rounds")
+            break
+    
+    # Convert assignments back to DataFrame format
+    lineup_data = []
+    for event, swimmers in event_assignments.items():
+        for swimmer_data in swimmers:
+            lineup_data.append({
+                'Event': event,
+                'Swimmer': swimmer_data['Swimmer'],
+                'Time': swimmer_data['Time']
+            })
+    
+    # Fill remaining spots if some events don't have enough swimmers
+    for event in all_events:
+        current_count = len(event_assignments[event])
+        if current_count < swimmers_per_event:
+            print(f"Warning: {event} only has {current_count} swimmers (target: {swimmers_per_event})")
+    
+    return pd.DataFrame(lineup_data)
 
 
 def main():
@@ -39,23 +208,26 @@ def main():
     
     # Configuration for lineup optimization
     MAX_EVENTS_PER_SWIMMER = 4
-    SWIMMERS_PER_EVENT = 5
+    SWIMMERS_PER_EVENT = 4  # Changed to 4 as required
     
     try:
         # Load the Excel file into a DataFrame first
         times_df = pd.read_excel(filename)
         print(f"→ Loaded {len(times_df)} swimmers from Excel file")
+        print(f"→ Columns in file: {list(times_df.columns)}")
         
-        # Now call lineup_spread with explicit parameters for talent distribution
+        # Now call round_robin_assignment with the pivot table data
         print(f"→ Optimizing lineup: {SWIMMERS_PER_EVENT} swimmers per event, max {MAX_EVENTS_PER_SWIMMER} events per swimmer")
-        lineup_df = lineup_spread(
+        lineup_df = round_robin_assignment(
             times_df, 
             max_events_per_swimmer=MAX_EVENTS_PER_SWIMMER, 
             swimmers_per_event=SWIMMERS_PER_EVENT
         )
                         
     except Exception as e:
-        print(f"Error in lineup_spread: {e}")
+        print(f"Error in round_robin_assignment: {e}")
+        import traceback
+        traceback.print_exc()
         return
 
     # 6) Create CSV output filename with timestamp
@@ -67,27 +239,14 @@ def main():
     events = lineup_df['Event'].unique()
     
     for event in events:
-        event_swimmers = lineup_df[lineup_df['Event'] == event].sort_values('Time')
+        event_swimmers = lineup_df[lineup_df['Event'] == event].copy()
+        
+        # Sort by time (convert to seconds for proper sorting)
+        event_swimmers['Time_Seconds'] = event_swimmers['Time'].apply(time_to_seconds)
+        event_swimmers = event_swimmers.sort_values('Time_Seconds')
         
         # Calculate event statistics
-        times = []
-        for _, row in event_swimmers.iterrows():
-            times.append(row['Time'])
-        
-        # Convert times to seconds for calculations
-        times_in_seconds = []
-        for time_str in times:
-            try:
-                if ':' in str(time_str):
-                    parts = str(time_str).split(':')
-                    minutes = int(parts[0])
-                    seconds = float(parts[1])
-                    time_seconds = minutes * 60 + seconds
-                else:
-                    time_seconds = float(time_str)
-                times_in_seconds.append(time_seconds)
-            except (ValueError, IndexError):
-                times_in_seconds.append(0)
+        times_in_seconds = event_swimmers['Time_Seconds'].tolist()
         
         # Calculate event metrics
         if times_in_seconds:
@@ -157,7 +316,10 @@ def main():
     print("\n=== DUAL MEET LINEUP ===")
     
     for event in events:
-        event_swimmers = lineup_df[lineup_df['Event'] == event].sort_values('Time')
+        event_swimmers = lineup_df[lineup_df['Event'] == event].copy()
+        event_swimmers['Time_Seconds'] = event_swimmers['Time'].apply(time_to_seconds)
+        event_swimmers = event_swimmers.sort_values('Time_Seconds')
+        
         print(f"\n{event}:")
         
         for i, (_, row) in enumerate(event_swimmers.iterrows(), 1):
