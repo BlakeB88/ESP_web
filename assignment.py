@@ -215,6 +215,7 @@ def round_robin_assignment(times_df, max_events_per_swimmer=4,
 
 def strategic_dual_meet_assignment(user_times_df, opponent_times_df,
                                    max_events_per_swimmer=4,
+                                   swimmers_per_event=4,
                                    swimmer_relay_counts=None, relay_events=None):
     """
     Maximize points against opponent.
@@ -226,7 +227,7 @@ def strategic_dual_meet_assignment(user_times_df, opponent_times_df,
     if opponent_times_df.empty:
         print("No opponent data - falling back to round robin")
         return round_robin_assignment(user_times_df, max_events_per_swimmer,
-                                      4, swimmer_relay_counts)  # Fixed: changed from 3 to 4
+                                      swimmers_per_event, swimmer_relay_counts)
 
     if swimmer_relay_counts is None:
         swimmer_relay_counts = {}
@@ -275,14 +276,14 @@ def strategic_dual_meet_assignment(user_times_df, opponent_times_df,
         # Get opponent times for scoring calculation
         opp_times = list(opp_event_data['Time_secs'])
         
-        # Assign up to 4 swimmers strategically (changed from 3 to 4)
+        # Assign up to swimmers_per_event swimmers strategically
         assigned_count = 0
         for _, row in user_event_data.iterrows():
             swimmer = row['Swimmer']
             time_secs = row['Time_secs']
             
             if (swimmer_event_counts[swimmer] < max_events_per_swimmer and 
-                assigned_count < 4):  # Changed from 3 to 4
+                assigned_count < swimmers_per_event):
                 
                 # Calculate expected place against opponents
                 place = 1 + sum(1 for opp_time in opp_times if opp_time < time_secs)
@@ -298,7 +299,7 @@ def strategic_dual_meet_assignment(user_times_df, opponent_times_df,
                 swimmer_event_counts[swimmer] += 1
                 assigned_count += 1
                 
-                if assigned_count >= 4:  # Changed from 3 to 4
+                if assigned_count >= swimmers_per_event:
                     break
         
         print(f"  {event}: Assigned {assigned_count} swimmers")
