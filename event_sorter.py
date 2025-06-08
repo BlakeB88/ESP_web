@@ -1,4 +1,4 @@
-# Enhanced event_sorter.py
+# event_sorter.py
 
 import pandas as pd
 from Scraper.swimmer_scraper import scrape_and_save
@@ -25,6 +25,7 @@ from output import (
     print_individual_lineup,
     print_relay_lineup,
     print_detailed_lineup,
+    prompt_and_export_lineup,  # NEW: Import the export function
 )
 
 
@@ -111,6 +112,9 @@ def main():
         print_individual_lineup(individual_lineup_df)
         print_relay_lineup(relay_lineup_df)
         print_detailed_lineup(individual_lineup_df, relay_lineup_df, final_swimmer_counts)
+        
+        # NEW: Prompt for export
+        prompt_and_export_lineup(individual_lineup_df, relay_lineup_df, team_name)
 
     else:
         # Strategic dual-team
@@ -277,6 +281,14 @@ def main():
 
         # Display detailed lineup analysis
         print_detailed_lineup(user_ind_lineup, user_strat_relay_df, user_final_counts)
+        
+        # NEW: Prompt for export - export your team's lineup
+        prompt_and_export_lineup(user_ind_lineup, user_strat_relay_df, user_team)
+        
+        # NEW: Optional export of opponent lineup for reference
+        export_opponent = input("\nAlso export opponent lineup for reference? (y/n): ").strip().lower()
+        if export_opponent == 'y':
+            prompt_and_export_lineup(opponent_ind_lineup, opponent_relay_df, f"{opponent_team}_Reference")
 
 
 if __name__ == "__main__":
