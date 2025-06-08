@@ -58,17 +58,18 @@ def filter_events_by_preferences(times_df, distance_events, im_events):
     """
     Filter DataFrame for only the individual events the user selected.
     Handles both pivoted (wide) and long formats.
+    Note: Excludes 50 fly, back, and breast from individual events (they're kept for relays only).
     """
     if times_df.empty:
         print("Warning: Empty DataFrame provided to filter_events_by_preferences")
         return times_df
     
-    # Standard swimming events - using exact names that match scraped data
+    # Standard swimming events - EXCLUDING 50 fly, back, breast (kept for relays only)
     standard = [
         '50 free', '100 free', '200 free', '500 free',
-        '50 back', '100 back', '200 back',
-        '50 breast', '100 breast', '200 breast', 
-        '50 fly', '100 fly', '200 fly'
+        '100 back', '200 back',
+        '100 breast', '200 breast', 
+        '100 fly', '200 fly'
     ]
     
     # Combine all selected events
