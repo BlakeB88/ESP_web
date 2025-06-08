@@ -22,6 +22,90 @@ def time_to_seconds(time_str):
         return float('inf')  # Return infinity for invalid times
 
 
+def get_user_event_preferences():
+    """
+    Get user preferences for distance and IM events
+    """
+    print("\n=== EVENT SELECTION ===")
+    
+    # Distance Event Selection
+    print("\nDistance Event Options:")
+    print("1. 1650 Free only")
+    print("2. 1000 Free only")
+    print("3. Both 1650 and 1000 Free")
+    
+    while True:
+        distance_choice = input("Choose distance events (1-3): ").strip()
+        if distance_choice in ['1', '2', '3']:
+            break
+        print("Please enter 1, 2, or 3")
+    
+    # IM Event Selection
+    print("\nIndividual Medley Event Options:")
+    print("1. 200 IM only")
+    print("2. 400 IM only") 
+    print("3. Both 200 IM and 400 IM")
+    
+    while True:
+        im_choice = input("Choose IM events (1-3): ").strip()
+        if im_choice in ['1', '2', '3']:
+            break
+        print("Please enter 1, 2, or 3")
+    
+    # Convert choices to event lists
+    distance_events = []
+    if distance_choice == '1':
+        distance_events = ['1650 free']
+    elif distance_choice == '2':
+        distance_events = ['1000 free']
+    else:  # choice == '3'
+        distance_events = ['1650 free', '1000 free']
+    
+    im_events = []
+    if im_choice == '1':
+        im_events = ['200 IM']
+    elif im_choice == '2':
+        im_events = ['400 IM']
+    else:  # choice == '3'
+        im_events = ['200 IM', '400 IM']
+    
+    return distance_events, im_events
+
+
+def filter_events_by_preferences(times_df, distance_events, im_events):
+    """
+    Filter the times DataFrame to only include selected events
+    """
+    # Standard events that are always included
+    standard_events = [
+        '50 free', '100 free', '200 free', '500 free',
+        '50 back', '100 back', '200 back',
+        '50 breast', '100 breast', '200 breast', 
+        '50 fly', '100 fly', '200 fly'
+    ]
+    
+    # Combine all selected events
+    selected_events = standard_events + distance_events + im_events
+    
+    print(f"\n→ Selected events for lineup: {selected_events}")
+    
+    # If we're working with pivot table format, filter columns
+    if 'Event' not in times_df.columns:
+        # This is pivot format - filter columns
+        available_columns = [col for col in times_df.columns if col != 'Swimmer']
+        filtered_columns = ['Swimmer'] + [col for col in available_columns if col in selected_events]
+        
+        print(f"→ Available events in data: {available_columns}")
+        print(f"→ Filtered to columns: {filtered_columns}")
+        
+        return times_df[filtered_columns]
+    else:
+        # This is long format - filter rows
+        filtered_df = times_df[times_df['Event'].isin(selected_events)].copy()
+        print(f"→ Filtered from {len(times_df)} to {len(filtered_df)} swimmer-event combinations")
+        return filtered_df
+
+
 def pivot_to_long_format(pivot_df):
     """
     Convert pivot table format to long format for lineup assignment
@@ -180,16 +264,22 @@ def main():
     # 1) Ask for user inputs
     team_name = input("Enter the college/team name: ").strip()
     year_input = input("Enter year [default = 2025]: ").strip()
-    year = int(year_input) if year_input else 2024
+    year = int(year_input) if year_input else 2025
     gender_input = input("Enter gender (M/F): ").strip().upper()
     gender = gender_input if gender_input in ("M", "F") else "M"
 
-    # 2) Where the JSON lives (relative to this file)
+    # 2) Get user event preferences
+    distance_events, im_events = get_user_event_preferences()
+    
+    print(f"\n→ Selected distance events: {distance_events}")
+    print(f"→ Selected IM events: {im_events}")
+
+    # 3) Where the JSON lives (relative to this file)
     mappings_file = "Scraper/maps/team_mappings/all_college_teams.json"
-    # 3) Where we will write the raw swimmer‐times Excel
+    # 4) Where we will write the raw swimmer‐times Excel
     filename = "swimmer_times.xlsx"
 
-    # 4) Scrape and save all times
+    # 5) Scrape and save all times
     try:
         print(f"→ Scraping SwimCloud for {team_name} ({gender}, {year}) using mappings from {mappings_file}...")
         scrape_and_save(
@@ -203,7 +293,7 @@ def main():
         print(f"Error during scraping: {e}")
         return
 
-    # 5) Now load that same Excel and do the lineup‐assignment
+    # 6) Now load that same Excel and do the lineup‐assignment
     print(f"→ Running lineup optimization from '{filename}'...")
     
     # Configuration for lineup optimization
@@ -216,10 +306,14 @@ def main():
         print(f"→ Loaded {len(times_df)} swimmers from Excel file")
         print(f"→ Columns in file: {list(times_df.columns)}")
         
-        # Now call round_robin_assignment with the pivot table data
+        # Filter events based on user preferences
+        filtered_times_df = filter_events_by_preferences(times_df, distance_events, im_events)
+        print(f"→ Filtered data shape: {filtered_times_df.shape}")
+        
+        # Now call round_robin_assignment with the filtered data
         print(f"→ Optimizing lineup: {SWIMMERS_PER_EVENT} swimmers per event, max {MAX_EVENTS_PER_SWIMMER} events per swimmer")
         lineup_df = round_robin_assignment(
-            times_df, 
+            filtered_times_df, 
             max_events_per_swimmer=MAX_EVENTS_PER_SWIMMER, 
             swimmers_per_event=SWIMMERS_PER_EVENT
         )
@@ -230,11 +324,25 @@ def main():
         traceback.print_exc()
         return
 
-    # 6) Create CSV output filename with timestamp
+    # 7) Create CSV output filename with timestamp and event selection info
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_filename = f"lineup_{team_name.replace(' ', '_')}_{gender}_{year}_{timestamp}.csv"
     
-    # 7) Prepare enhanced lineup data for CSV export
+    # Create event selection suffix
+    distance_suffix = ""
+    if len(distance_events) == 1:
+        distance_suffix = distance_events[0].replace(" ", "").replace("free", "")
+    else:
+        distance_suffix = "1650_1000"
+    
+    im_suffix = ""
+    if len(im_events) == 1:
+        im_suffix = im_events[0].replace(" ", "").replace("IM", "IM")
+    else:
+        im_suffix = "200_400IM"
+    
+    csv_filename = f"lineup_{team_name.replace(' ', '_')}_{gender}_{year}_{distance_suffix}_{im_suffix}_{timestamp}.csv"
+    
+    # 8) Prepare enhanced lineup data for CSV export
     csv_data = []
     events = lineup_df['Event'].unique()
     
@@ -271,13 +379,13 @@ def main():
                 'Swimmers_In_Event': len(event_swimmers)
             })
     
-    # 8) Create and save CSV
+    # 9) Create and save CSV
     csv_df = pd.DataFrame(csv_data)
     csv_df.to_csv(csv_filename, index=False)
     print(f"→ Lineup saved to CSV: {csv_filename}")
     
-    # 9) Create summary CSV with team-level statistics
-    summary_filename = f"lineup_summary_{team_name.replace(' ', '_')}_{gender}_{year}_{timestamp}.csv"
+    # 10) Create summary CSV with team-level statistics
+    summary_filename = f"lineup_summary_{team_name.replace(' ', '_')}_{gender}_{year}_{distance_suffix}_{im_suffix}_{timestamp}.csv"
     
     # Calculate swimmer event distribution
     swimmer_counts = lineup_df['Swimmer'].value_counts()
@@ -286,6 +394,8 @@ def main():
         'Team': [team_name],
         'Gender': [gender],
         'Year': [year],
+        'Distance_Events': [', '.join(distance_events)],
+        'IM_Events': [', '.join(im_events)],
         'Total_Events': [len(events)],
         'Total_Lineup_Entries': [len(lineup_df)],
         'Swimmers_4_Events': [sum(swimmer_counts == MAX_EVENTS_PER_SWIMMER)],
@@ -312,8 +422,10 @@ def main():
     summary_df.to_csv(summary_filename, index=False)
     print(f"→ Summary saved to CSV: {summary_filename}")
 
-    # 10) Print out the assignment for each event (console output remains)
+    # 11) Print out the assignment for each event (console output remains)
     print("\n=== DUAL MEET LINEUP ===")
+    print(f"Distance Events: {', '.join(distance_events)}")
+    print(f"IM Events: {', '.join(im_events)}")
     
     for event in events:
         event_swimmers = lineup_df[lineup_df['Event'] == event].copy()
@@ -325,10 +437,12 @@ def main():
         for i, (_, row) in enumerate(event_swimmers.iterrows(), 1):
             print(f"  {i}. {row['Swimmer']:<25}  {row['Time']}")
     
-    # 11) Display summary statistics
+    # 12) Display summary statistics
     print(f"\n=== LINEUP SUMMARY ===")
     print(f"Total Events: {len(events)}")
     print(f"Total Lineup Entries: {len(lineup_df)}")
+    print(f"Distance Events Selected: {', '.join(distance_events)}")
+    print(f"IM Events Selected: {', '.join(im_events)}")
     
     # Show swimmer event counts
     print(f"\nSwimmer Event Distribution:")
