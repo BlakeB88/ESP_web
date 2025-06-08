@@ -179,9 +179,9 @@ def main():
 
     # 1) Ask for user inputs
     team_name = input("Enter the college/team name: ").strip()
-    year_input = input("Enter year [default=2024]: ").strip()
+    year_input = input("Enter year [default = 2025]: ").strip()
     year = int(year_input) if year_input else 2024
-    gender_input = input("Enter gender (M/F) [default=M]: ").strip().upper()
+    gender_input = input("Enter gender (M/F): ").strip().upper()
     gender = gender_input if gender_input in ("M", "F") else "M"
 
     # 2) Where the JSON lives (relative to this file)
