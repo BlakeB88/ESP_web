@@ -1,79 +1,48 @@
 🏊 Dual Meet Lineup Builder
 
-Optimize college swim meet lineups using real performance data from SwimCloud.
+Optimize swim meet lineups using real-time performance data from SwimCloud.
 
 📌 Overview
 
-The Dual Meet Lineup Builder is a Python-based tool for generating optimal lineups for NCAA swimming dual meets. It scrapes event times directly from SwimCloud, processes performance data, and builds competitive individual and relay assignments for a selected team.
+The Dual Meet Lineup Builder is a Python application that helps college swim coaches and analysts create the most competitive meet lineups possible.
 
-It supports:
+Built for NCAA dual meets, it automates the data collection and lineup selection process based on real swimmer times.
 
-Single Team Optimization (best individual/team performance)
-Strategic Matchups (future: beat a specific opponent)
+🧠 Mode Selection
 
-=== Dual Meet Lineup Builder ===
+1️⃣ Single Team Lineup (Best Overall Performance)
+Selects the fastest possible lineup for a single team, maximizing potential point scoring using the top swimmers available in each event.
+Use case:
 
-1. Single Team Lineup (best overall performance)
-2. Strategic Dual Team Lineup (beat a specific opponent)
-Choose mode (1-2): 1
+Prepare for conference or championship meets
+Identify team strengths and swimmer roles
+Benchmark top performance scenarios
+2️⃣ Strategic Dual Team Lineup (Beat a Specific Opponent)
+(Coming soon) Builds a competitive lineup against a specific opposing team, using performance data for both teams to maximize the likelihood of a win.
+Use case:
 
-Choose pool configuration (1-2): 1 → 8-lane pool
-
-Enter team name: Georgia Institute of Technology
-Enter year: 2025
-Enter gender (M/F): M
-
-Distance Events: 1650 Free only
-IM Events: 200 IM only
-Relays: 200 Medley & 200 Free
-
-→ Scraping 15 events from SwimCloud...
-✓ Successfully collected 150 time entries
-✓ Lineup optimized and saved to `Georgia_Institute_of_Technology_times.xlsx`
-
-
+Head-to-head meet planning
+Optimize matchups strategically (not just by fastest time)
+Conserve swimmer energy while targeting winnable events
 ✅ Features
 
-Interactive CLI for user inputs (team, year, gender, events, relays)
-Automated scraping of SwimCloud event data using Selenium
-Data processing pipeline:
-Raw swimmer time extraction
-Pivoting and cleaning
-Performance-based assignment for:
-Individual events
-200 Free/Medley Relay teams (A/B squads)
-Output options: .txt, .csv, .xlsx
-Swimmer usage tracking to balance lineups
-📂 Outputs
+🧠 Intelligent event assignment based on real times
+🕵️‍♂️ Web scraper for SwimCloud college team data
+📊 Relay and individual event sorting
+📁 Exports to .xlsx, .csv, and .txt
+🧮 Swimmer usage control to avoid overloading athletes
 
-A full event-by-event lineup:
-Top 4 swimmers per individual event
-Relay squads with legs assigned by best times
-Exported in multiple formats:
-Georgia_Institute_of_Technology_times.xlsx
-individual_lineup.txt
-lineup.csv
-🧠 Example Output Snapshot
+🚀 Quick Start
+Follow the interactive prompts to:
 
-200 Free Relay A
+Select your mode (Single or Dual Team)
+Choose pool configuration (8 or 10 lanes)
+Input your team, year, and gender
+Choose which events to include
+View and export your lineup
 
-Leandro Odorici – 19.26
-Robin Yeboah – 19.63
-David Gapinski – 19.84
-Ricky Balduccini – 20.04
-100 Fly
+📂 Output Files
 
-Antonio Romero – 45.78
-Stephen Jones – 45.90
-Ricky Balduccini – 46.28
-Robin Yeboah – 46.66
-
-⚙️ Requirements
-
-Python 3.8+
-pandas, selenium, openpyxl, beautifulsoup4, lxml
-
-🧑‍💻 Author
-
-Blake Burnley
-Georgia Institute of Technology
+individual_lineup.txt — readable event summary
+lineup.csv — swimmer assignments per event
+YourTeamName_times.xlsx — detailed swimmer times per event
