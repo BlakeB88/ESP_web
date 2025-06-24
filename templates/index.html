@@ -1,0 +1,859 @@
+# Create updated HTML file based on preferences.py structure
+html_content = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏊 Dual Meet Lineup Builder</title>
+    <style>
+    /* Keep existing CSS styles */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    .header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .header p {
+        font-size: 1.2em;
+        opacity: 0.9;
+    }
+    .main-content {
+        padding: 40px;
+    }
+    .mode-selection {
+        margin-bottom: 40px;
+    }
+    .mode-tabs {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .mode-tab {
+        flex: 1;
+        padding: 20px;
+        border: 3px solid #e0e7ff;
+        border-radius: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        background: white;
+    }
+    .mode-tab:hover {
+        border-color: #4facfe;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.2);
+    }
+    .mode-tab.active {
+        border-color: #4facfe;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    .mode-tab h3 {
+        font-size: 1.4em;
+        margin-bottom: 10px;
+    }
+    .mode-tab p {
+        font-size: 0.95em;
+        line-height: 1.4;
+    }
+    .config-section {
+        background: #f8fafc;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    .config-section h3 {
+        color: #1e293b;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+    }
+    .pool-config {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .pool-option {
+        flex: 1;
+        padding: 15px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        background: white;
+    }
+    .pool-option:hover {
+        border-color: #4facfe;
+    }
+    .pool-option.active {
+        border-color: #4facfe;
+        background: #eff6ff;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    .form-group label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+    .form-group input,
+    .form-group select {
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1em;
+        transition: border-color 0.3s ease;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #4facfe;
+        box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    }
+    .event-selection {
+        background: #f8fafc;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    .event-group {
+        margin-bottom: 25px;
+    }
+    .event-group h4 {
+        color: #1e293b;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+    }
+    .radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .radio-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 6px;
+        transition: background-color 0.2s ease;
+    }
+    .radio-item:hover {
+        background-color: rgba(79, 172, 254, 0.1);
+    }
+    .radio-item input[type="radio"] {
+        width: 18px;
+        height: 18px;
+        accent-color: #4facfe;
+    }
+    .radio-item label {
+        cursor: pointer;
+        font-weight: normal;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-top: 40px;
+    }
+    .btn {
+        padding: 15px 30px;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+    }
+    .btn-primary:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    .dual-team-section {
+        display: none;
+        background: #fef3c7;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        border-left: 5px solid #f59e0b;
+    }
+    .dual-team-section.active {
+        display: block;
+    }
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+    }
+    .status-ready {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .status-incomplete {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    .status-processing {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .status-error {
+        background: #fecaca;
+        color: #991b1b;
+    }
+    .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #e5e7eb;
+        border-top: 2px solid #4facfe;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .results-section {
+        background: #f0fdf4;
+        padding: 30px;
+        border-radius: 15px;
+        margin-top: 30px;
+        border-left: 5px solid #10b981;
+        display: none;
+    }
+    .results-section.active {
+        display: block;
+    }
+    .results-section.error {
+        background: #fef2f2;
+        border-left-color: #ef4444;
+    }
+    .swimmer-limits {
+        background: #f8fafc;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    .strategy-selection {
+        background: #f8fafc;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+    }
+    @media (max-width: 768px) {
+        .mode-tabs {
+            flex-direction: column;
+        }
+        .pool-config {
+            flex-direction: column;
+        }
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏊 Dual Meet Lineup Builder</h1>
+            <p>Optimize swim meet lineups using real-time performance data</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Mode Selection -->
+            <div class="mode-selection">
+                <h2 style="margin-bottom: 20px; color: #1e293b;">Dual Meet Mode Selection</h2>
+                <div class="mode-tabs">
+                    <div class="mode-tab active" data-mode="single">
+                        <h3>🏆 Single Team Lineup</h3>
+                        <p>Best overall performance - maximizes potential point scoring using top swimmers.</p>
+                    </div>
+                    <div class="mode-tab" data-mode="dual">
+                        <h3>⚔️ Strategic Dual Team Lineup</h3>
+                        <p>Beat a specific opponent - optimizes lineups to maximize points against opponent using both teams' data.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pool Configuration -->
+            <div class="config-section">
+                <h3>🏊‍♀️ Pool Configuration</h3>
+                <p style="margin-bottom: 15px; color: #64748b;">Select pool lane configuration to determine swimmers per event:</p>
+                <div class="pool-config">
+                    <div class="pool-option active" data-lanes="8" data-swimmers="4">
+                        <strong>8-lane pool</strong><br>
+                        <span>4 swimmers per event</span>
+                    </div>
+                    <div class="pool-option" data-lanes="10" data-swimmers="5">
+                        <strong>10-lane pool</strong><br>
+                        <span>5 swimmers per event</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Information -->
+            <div class="config-section" id="teamInfoSection">
+                <h3 id="teamInfoTitle">📋 Team Information</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="teamName">Team Name</label>
+                        <input type="text" id="teamName" placeholder="Enter the team name">
+                    </div>
+                    <div class="form-group" id="yearGroup">
+                        <label for="year">Year</label>
+                        <input type="number" id="year" placeholder="2025" value="2025" min="2020" max="2030">
+                    </div>
+                    <div class="form-group" id="genderGroup">
+                        <label for="gender">Gender</label>
+                        <select id="gender">
+                            <option value="">Select gender</option>
+                            <option value="M">M (Men)</option>
+                            <option value="F">F (Women)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Dual Team Additional Fields -->
+                <div class="dual-team-section" id="dualTeamFields">
+                    <h4 style="margin-bottom: 15px; color: #92400e;">Meet Configuration</h4>
+                    <p style="margin-bottom: 15px; color: #92400e; font-size: 0.9em;">Year and gender will be shared for both teams in strategic mode.</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="opponentName">Opponent Team Name</label>
+                            <input type="text" id="opponentName" placeholder="Enter opponent team name">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Selection -->
+            <div class="event-selection">
+                <h3>🏊‍♂️ Event Selection</h3>
+                
+                <div class="event-group">
+                    <h4>Distance Options</h4>
+                    <div class="radio-group" id="distanceEvents">
+                        <div class="radio-item">
+                            <input type="radio" id="distance_1650_only" name="distance" value="1">
+                            <label for="distance_1650_only">1650 Free only</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="distance_1000_only" name="distance" value="2">
+                            <label for="distance_1000_only">1000 Free only</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="distance_both" name="distance" value="3">
+                            <label for="distance_both">Both 1650 and 1000 Free</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="distance_neither" name="distance" value="4" checked>
+                            <label for="distance_neither">Neither (skip distance events)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="event-group">
+                    <h4>IM Options</h4>
+                    <div class="radio-group" id="imEvents">
+                        <div class="radio-item">
+                            <input type="radio" id="im_200_only" name="im" value="1">
+                            <label for="im_200_only">200 IM only</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="im_400_only" name="im" value="2">
+                            <label for="im_400_only">400 IM only</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="im_both" name="im" value="3">
+                            <label for="im_both">Both 200 and 400 IM</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="im_neither" name="im" value="4" checked>
+                            <label for="im_neither">Neither (skip IM events)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="event-group">
+                    <h4>Relay Selection</h4>
+                    <div class="radio-group" id="relayEvents">
+                        <div class="radio-item">
+                            <input type="radio" id="relay_200m_200f" name="relay" value="1" checked>
+                            <label for="relay_200m_200f">200 Medley & 200 Free</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="relay_200m_400f" name="relay" value="2">
+                            <label for="relay_200m_400f">200 Medley & 400 Free</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="relay_400m_200f" name="relay" value="3">
+                            <label for="relay_400m_200f">400 Medley & 200 Free</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="relay_400m_400f" name="relay" value="4">
+                            <label for="relay_400m_400f">400 Medley & 400 Free</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="relay_all_four" name="relay" value="5">
+                            <label for="relay_all_four">All four relays</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="relay_medley_only" name="relay" value="6">
+                            <label for="relay_medley_only">Medley relays only (200 & 400)</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="relay_free_only" name="relay" value="7">
+                            <label for="relay_free_only">Free relays only (200 & 400)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Swimmer Event Limits -->
+            <div class="swimmer-limits">
+                <h3>🏊‍♀️ Swimmer Event Limits</h3>
+                <p style="margin-bottom: 15px; color: #64748b;">Maximum events per swimmer (including relays):</p>
+                <div class="radio-group" id="maxEvents">
+                    <div class="radio-item">
+                        <input type="radio" id="max_3" name="maxEvents" value="3">
+                        <label for="max_3">3 events (conservative)</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" id="max_4" name="maxEvents" value="4" checked>
+                        <label for="max_4">4 events (standard)</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" id="max_5" name="maxEvents" value="5">
+                        <label for="max_5">5 events (aggressive)</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lineup Strategy (Single Team Only) -->
+            <div class="strategy-selection" id="strategySection" style="display: none;">
+                <h3>📊 Lineup Strategy</h3>
+                <p style="margin-bottom: 15px; color: #64748b;">Choose your lineup strategy preference:</p>
+                <div class="radio-group" id="strategy">
+                    <div class="radio-item">
+                        <input type="radio" id="strategy_balanced" name="strategy" value="1" checked>
+                        <label for="strategy_balanced">Balanced (round-robin assignment)</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" id="strategy_depth" name="strategy" value="2">
+                        <label for="strategy_depth">Depth-focused (maximize participation)</label>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" id="strategy_speed" name="strategy" value="3">
+                        <label for="strategy_speed">Speed-focused (fastest swimmers get priority)</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status and Action Buttons -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div class="status-indicator status-incomplete" id="statusIndicator">
+                    <span>⚠️ Configuration Incomplete</span>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="generateLineupBtn" disabled>
+                    <span id="generateBtnText">Generate Lineup</span>
+                    <div class="loading-spinner" id="loadingSpinner" style="display: none;"></div>
+                </button>
+                <button class="btn btn-secondary" id="resetBtn">Reset Form</button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection">
+                <div class="results-header">
+                    <h3 style="color: #065f46; margin: 0;">📊 Generated Lineup</h3>
+                </div>
+                
+                <div id="resultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        let appState = {
+            mode: 'single',
+            poolConfig: { lanes: 8, swimmers: 4 },
+            teamInfo: {},
+            eventSelections: { distance: '4', im: '4', relay: '1' },
+            maxEvents: '4',
+            strategy: '1',
+            isValid: false
+        };
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeEventListeners();
+            updateStatus();
+        });
+
+        function initializeEventListeners() {
+            // Mode selection
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    appState.mode = this.dataset.mode;
+                    
+                    const dualFields = document.getElementById('dualTeamFields');
+                    const strategySection = document.getElementById('strategySection');
+                    const teamInfoTitle = document.getElementById('teamInfoTitle');
+                    
+                    if (appState.mode === 'dual') {
+                        dualFields.classList.add('active');
+                        strategySection.style.display = 'none';
+                        teamInfoTitle.textContent = '📋 Meet Configuration';
+                        // Hide individual year/gender fields in dual mode
+                        document.getElementById('yearGroup').style.display = 'none';
+                        document.getElementById('genderGroup').style.display = 'none';
+                    } else {
+                        dualFields.classList.remove('active');
+                        strategySection.style.display = 'block';
+                        teamInfoTitle.textContent = '📋 Team Information';
+                        // Show individual year/gender fields in single mode
+                        document.getElementById('yearGroup').style.display = 'block';
+                        document.getElementById('genderGroup').style.display = 'block';
+                    }
+                    updateStatus();
+                });
+            });
+
+            // Pool configuration
+            document.querySelectorAll('.pool-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.pool-option').forEach(o => o.classList.remove('active'));
+                    this.classList.add('active');
+                    appState.poolConfig = {
+                        lanes: parseInt(this.dataset.lanes),
+                        swimmers: parseInt(this.dataset.swimmers)
+                    };
+                    updateStatus();
+                });
+            });
+
+            // Form inputs
+            ['teamName', 'year', 'gender', 'opponentName'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('change', updateTeamInfo);
+                    element.addEventListener('input', updateTeamInfo);
+                }
+            });
+
+            // Event selection radio buttons
+            ['distance', 'im', 'relay', 'maxEvents', 'strategy'].forEach(groupName => {
+                document.querySelectorAll(`input[name="${groupName}"]`).forEach(radio => {
+                    radio.addEventListener('change', updateEventSelection);
+                });
+            });
+
+            // Action buttons
+            document.getElementById('generateLineupBtn').addEventListener('click', generateLineup);
+            document.getElementById('resetBtn').addEventListener('click', resetForm);
+        }
+
+        function updateTeamInfo() {
+            appState.teamInfo = {
+                teamName: document.getElementById('teamName').value,
+                year: document.getElementById('year').value,
+                gender: document.getElementById('gender').value,
+                opponentName: document.getElementById('opponentName').value
+            };
+            updateStatus();
+        }
+
+        function updateEventSelection() {
+            // Update event selections
+            const distanceRadio = document.querySelector('input[name="distance"]:checked');
+            const imRadio = document.querySelector('input[name="im"]:checked');
+            const relayRadio = document.querySelector('input[name="relay"]:checked');
+            const maxEventsRadio = document.querySelector('input[name="maxEvents"]:checked');
+            const strategyRadio = document.querySelector('input[name="strategy"]:checked');
+
+            appState.eventSelections = {
+                distance: distanceRadio ? distanceRadio.value : '4',
+                im: imRadio ? imRadio.value : '4',
+                relay: relayRadio ? relayRadio.value : '1'
+            };
+            
+            appState.maxEvents = maxEventsRadio ? maxEventsRadio.value : '4';
+            appState.strategy = strategyRadio ? strategyRadio.value : '1';
+
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const generateBtn = document.getElementById('generateLineupBtn');
+            
+            // Check if configuration is complete
+            const hasTeamName = appState.teamInfo.teamName && appState.teamInfo.teamName.trim() !== '';
+            const hasYear = appState.mode === 'dual' || (appState.teamInfo.year && appState.teamInfo.year !== '');
+            const hasGender = appState.mode === 'dual' || (appState.teamInfo.gender && appState.teamInfo.gender !== '');
+            const hasOpponent = appState.mode === 'single' || (appState.teamInfo.opponentName && appState.teamInfo.opponentName.trim() !== '');
+
+            appState.isValid = hasTeamName && hasYear && hasGender && hasOpponent;
+
+            if (appState.isValid) {
+                statusIndicator.className = 'status-indicator status-ready';
+                statusIndicator.innerHTML = '<span>✅ Ready to Generate Lineup</span>';
+                generateBtn.disabled = false;
+            } else {
+                statusIndicator.className = 'status-indicator status-incomplete';
+                statusIndicator.innerHTML = '<span>⚠️ Configuration Incomplete</span>';
+                generateBtn.disabled = true;
+            }
+        }
+
+        async function generateLineup() {
+            if (!appState.isValid) return;
+
+            const generateBtn = document.getElementById('generateLineupBtn');
+            const btnText = document.getElementById('generateBtnText');
+            const spinner = document.getElementById('loadingSpinner');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const resultsSection = document.getElementById('resultsSection');
+
+            // Show loading state
+            generateBtn.disabled = true;
+            btnText.textContent = 'Generating...';
+            spinner.style.display = 'block';
+            statusIndicator.className = 'status-indicator status-processing';
+            statusIndicator.innerHTML = '<span>🔄 Processing lineup optimization...</span>';
+
+            try {
+                // Simulate API call delay
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Display configuration summary
+                displayConfigurationSummary();
+                resultsSection.classList.add('active');
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+                // Update status to success
+                statusIndicator.className = 'status-indicator status-ready';
+                statusIndicator.innerHTML = '<span>✅ Configuration Summary Generated</span>';
+
+            } catch (error) {
+                console.error('Error generating lineup:', error);
+                statusIndicator.className = 'status-indicator status-error';
+                statusIndicator.innerHTML = '<span>❌ Error generating lineup</span>';
+            } finally {
+                // Reset button state
+                generateBtn.disabled = false;
+                btnText.textContent = 'Generate Lineup';
+                spinner.style.display = 'none';
+            }
+        }
+
+        function displayConfigurationSummary() {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            // Map selections to readable text
+            const distanceText = {
+                '1': '1650 Free only',
+                '2': '1000 Free only', 
+                '3': 'Both 1650 and 1000 Free',
+                '4': 'None'
+            };
+            
+            const imText = {
+                '1': '200 IM only',
+                '2': '400 IM only',
+                '3': 'Both 200 and 400 IM', 
+                '4': 'None'
+            };
+            
+            const relayText = {
+                '1': '200 Medley & 200 Free',
+                '2': '200 Medley & 400 Free',
+                '3': '400 Medley & 200 Free',
+                '4': '400 Medley & 400 Free',
+                '5': 'All four relays',
+                '6': 'Medley relays only (200 & 400)',
+                '7': 'Free relays only (200 & 400)'
+            };
+            
+            const maxEventsText = {
+                '3': '3 events (conservative)',
+                '4': '4 events (standard)',
+                '5': '5 events (aggressive)'
+            };
+            
+            const strategyText = {
+                '1': 'Balanced (round-robin assignment)',
+                '2': 'Depth-focused (maximize participation)',
+                '3': 'Speed-focused (fastest swimmers get priority)'
+            };
+
+            let summaryHTML = `
+                <div style="background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+                    <h4 style="color: #1e293b; margin-bottom: 20px; text-align: center; font-size: 1.4em;">
+                        🏊 LINEUP CONFIGURATION SUMMARY
+                    </h4>
+                    
+                    <div style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                            <div><strong>Mode:</strong> ${appState.mode === 'single' ? 'Single Team Lineup' : 'Strategic Dual Team Lineup'}</div>
+                            <div><strong>Pool:</strong> ${appState.poolConfig.lanes}-lane (${appState.poolConfig.swimmers} swimmers per event)</div>
+                            <div><strong>Team:</strong> ${appState.teamInfo.teamName}</div>
+            `;
+            
+            if (appState.mode === 'single') {
+                summaryHTML += `
+                            <div><strong>Year:</strong> ${appState.teamInfo.year}</div>
+                            <div><strong>Gender:</strong> ${appState.teamInfo.gender}</div>
+                            <div><strong>Strategy:</strong> ${strategyText[appState.strategy]}</div>
+                `;
+            } else {
+                summaryHTML += `
+                            <div><strong>Opponent:</strong> ${appState.teamInfo.opponentName}</div>
+                            <div><strong>Shared Year:</strong> Will be configured in meet setup</div>
+                            <div><strong>Shared Gender:</strong> Will be configured in meet setup</div>
+                `;
+            }
+            
+            summaryHTML += `
+                            <div><strong>Max Events per Swimmer:</strong> ${maxEventsText[appState.maxEvents]}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px;">
+                        <h5 style="margin-bottom: 15px; color: #374151;">Event Selections:</h5>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                            <div><strong>Distance events:</strong> ${distanceText[appState.eventSelections.distance]}</div>
+                            <div><strong>IM events:</strong> ${imText[appState.eventSelections.im]}</div>
+                            <div><strong>Relay events:</strong> ${relayText[appState.eventSelections.relay]}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 25px; padding: 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                        <p style="color: #166534; font-weight: 600;">✅ Configuration Complete - Ready for lineup generation!</p>
+                        <p style="color: #166534; font-size: 0.9em; margin-top: 5px;">This summary matches your preferences.py structure and can be used to generate the optimal lineup.</p>
+                    </div>
+                </div>
+            `;
+            
+            resultsContent.innerHTML = summaryHTML;
+        }
+
+        function resetForm() {
+            // Reset all form fields
+            document.getElementById('teamName').value = '';
+            document.getElementById('year').value = '2025';
+            document.getElementById('gender').value = '';
+            document.getElementById('opponentName').value = '';
+
+            // Reset radio buttons to defaults
+            document.getElementById('distance_neither').checked = true;
+            document.getElementById('im_neither').checked = true;
+            document.getElementById('relay_200m_200f').checked = true;
+            document.getElementById('max_4').checked = true;
+            document.getElementById('strategy_balanced').checked = true;
+
+            // Reset mode to single
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector('.mode-tab[data-mode="single"]').classList.add('active');
+
+            // Reset pool config
+            document.querySelectorAll('.pool-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelector('.pool-option[data-lanes="8"]').classList.add('active');
+
+            // Hide dual team fields and show strategy
+            document.getElementById('dualTeamFields').classList.remove('active');
+            document.getElementById('strategySection').style.display = 'block';
+            document.getElementById('teamInfoTitle').textContent = '📋 Team Information';
+            document.getElementById('yearGroup').style.display = 'block';
+            document.getElementById('genderGroup').style.display = 'block';
+
+            // Hide results
+            document.getElementById('resultsSection').classList.remove('active', 'error');
+
+            // Reset state
+            appState = {
+                mode: 'single',
+                poolConfig: { lanes: 8, swimmers: 4 },
+                teamInfo: {},
+                eventSelections: { distance: '4', im: '4', relay: '1' },
+                maxEvents: '4',
+                strategy: '1',
+                isValid: false
+            };
+
+            updateStatus();
+        }
+    </script>
+</body>
+</html>
