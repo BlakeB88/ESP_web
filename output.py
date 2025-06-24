@@ -361,6 +361,56 @@ def print_lineup_summary(individual_df, relay_df):
     print("="*40)
 
 
+def export_lineup_to_files(individual_df, relay_df, team_name="Team", output_folder=None):
+    """
+    Export lineup to multiple file formats for web application.
+    
+    Args:
+        individual_df: DataFrame with individual event lineup
+        relay_df: DataFrame with relay event lineup  
+        team_name: Name of the team for filename generation
+        output_folder: Directory to save files (if None, saves to current directory)
+    
+    Returns:
+        List of successfully exported filenames (relative paths for web download)
+    """
+    exported_files = []
+    
+    try:
+        # Generate timestamp for unique filenames
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_team_name = "".join(c for c in team_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        base_filename = f"{safe_team_name.replace(' ', '_')}_lineup_{timestamp}"
+        
+        # Export to text file
+        txt_filename = f"{base_filename}.txt"
+        if output_folder:
+            txt_filepath = os.path.join(output_folder, txt_filename)
+        else:
+            txt_filepath = txt_filename
+            
+        txt_file = export_lineup_to_txt(individual_df, relay_df, team_name, txt_filepath)
+        if txt_file:
+            exported_files.append(os.path.basename(txt_file))
+        
+        # Export to Excel file
+        excel_filename = f"{base_filename}.xlsx"
+        if output_folder:
+            excel_filepath = os.path.join(output_folder, excel_filename)
+        else:
+            excel_filepath = excel_filename
+            
+        excel_file = export_lineup_to_excel(individual_df, relay_df, team_name, excel_filepath)
+        if excel_file:
+            exported_files.append(os.path.basename(excel_file))
+        
+        return exported_files
+        
+    except Exception as e:
+        print(f"❌ Error in export_lineup_to_files: {e}")
+        return exported_files
+
+
 # Legacy function for backward compatibility
 def export_lineup_to_file(individual_df, relay_df, filename="lineup_export.txt"):
     """Legacy export function - maintained for backward compatibility."""
