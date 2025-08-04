@@ -4,18 +4,21 @@ services:
     env: python
     plan: free
     buildCommand: |
-      # Install Chrome via buildpack approach
-      mkdir -p .apt/etc/apt/sources.list.d .apt/etc/apt/trusted.gpg.d
-      echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > .apt/etc/apt/sources.list.d/google-chrome.list
-      wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key --keyring .apt/etc/apt/trusted.gpg.d/google-chrome.gpg add -
+      # Install Chrome and dependencies
+      apt-get update
+      apt-get install -y wget gnupg
+      wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+      echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
       apt-get update
       apt-get install -y google-chrome-stable
       pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:10000 --workers 1 --timeout 120
+    startCommand: gunicorn app:app --bind 0.0.0.0:10000 --workers 1 --timeout 300 --preload
     envVars:
       - key: CHROME_BIN
-        value: /app/.apt/usr/bin/google-chrome-stable
+        value: /usr/bin/google-chrome-stable
+      - key: GOOGLE_CHROME_BIN
+        value: /usr/bin/google-chrome-stable
       - key: CHROMEDRIVER_PATH
         value: /usr/bin/chromedriver
       - key: PYTHONPATH
-        value: /app/src
+        value: /opt/render/project/src
