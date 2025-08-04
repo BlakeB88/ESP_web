@@ -140,9 +140,9 @@ def convert_relay_events(relay_event_data):
 def convert_distance_events(distance_event_list):
     """Convert distance event IDs to event names"""
     DISTANCE_MAPPING = {
-        1: ["1650 Free"],
-        2: ["1000 Free"],
-        3: ["1650 Free", "1000 Free"],
+        1: ["1650 free"],
+        2: ["1000 free"],
+        3: ["1650 free", "1000 free"],
         4: []  # Neither
     }
     converted_events = []

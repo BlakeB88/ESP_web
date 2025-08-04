@@ -108,6 +108,154 @@ def print_detailed_lineup(individual_df, relay_df, swimmer_counts=None):
             print(f"{swimmer}: {count} events")
 
 
+def create_swimmer_event_mapping(individual_df, relay_df):
+    """
+    Create a comprehensive mapping of each swimmer to all their events.
+    
+    Args:
+        individual_df: DataFrame with individual event assignments
+        relay_df: DataFrame with relay event assignments
+    
+    Returns:
+        DataFrame with columns: Swimmer, Event, Event_Type, Time, Additional_Info
+    """
+    mapping_data = []
+    
+    try:
+        # Process individual events
+        if not individual_df.empty and 'Swimmer' in individual_df.columns and 'Event' in individual_df.columns:
+            for _, row in individual_df.iterrows():
+                swimmer_data = {
+                    'Swimmer': row['Swimmer'],
+                    'Event': row['Event'],
+                    'Event_Type': 'Individual',
+                    'Time': row.get('Time', 'N/A'),
+                    'Additional_Info': ''
+                }
+                
+                # Add strategic points if available
+                if 'Strategic_Points' in row and pd.notna(row['Strategic_Points']):
+                    swimmer_data['Additional_Info'] = f"Strategic Points: {row['Strategic_Points']}"
+                
+                mapping_data.append(swimmer_data)
+        
+        # Process relay events
+        if not relay_df.empty and 'Swimmer' in relay_df.columns and 'Relay' in relay_df.columns:
+            for _, row in relay_df.iterrows():
+                swimmer_data = {
+                    'Swimmer': row['Swimmer'],
+                    'Event': row['Relay'],
+                    'Event_Type': 'Relay',
+                    'Time': row.get('Time', 'N/A'),
+                    'Additional_Info': f"Leg: {row.get('Leg', 'Unknown')}"
+                }
+                mapping_data.append(swimmer_data)
+        
+        # Convert to DataFrame
+        if mapping_data:
+            mapping_df = pd.DataFrame(mapping_data)
+            
+            # Sort by swimmer name, then by event type (Individual first), then by event name
+            mapping_df['Sort_Event_Type'] = mapping_df['Event_Type'].map({'Individual': 1, 'Relay': 2})
+            mapping_df = mapping_df.sort_values(['Swimmer', 'Sort_Event_Type', 'Event'])
+            mapping_df = mapping_df.drop('Sort_Event_Type', axis=1)
+            
+            # Add event count per swimmer
+            swimmer_counts = mapping_df['Swimmer'].value_counts().to_dict()
+            mapping_df['Total_Events'] = mapping_df['Swimmer'].map(swimmer_counts)
+            
+            # Reorder columns for better readability
+            column_order = ['Swimmer', 'Total_Events', 'Event', 'Event_Type', 'Time', 'Additional_Info']
+            mapping_df = mapping_df[column_order]
+            
+            return mapping_df
+        else:
+            # Return empty DataFrame with proper columns if no data
+            return pd.DataFrame(columns=['Swimmer', 'Total_Events', 'Event', 'Event_Type', 'Time', 'Additional_Info'])
+            
+    except Exception as e:
+        print(f"❌ Error creating swimmer event mapping: {e}")
+        # Return empty DataFrame with proper columns on error
+        return pd.DataFrame(columns=['Swimmer', 'Total_Events', 'Event', 'Event_Type', 'Time', 'Additional_Info'])
+
+
+def create_swimmer_summary_mapping(individual_df, relay_df):
+    """
+    Create a condensed summary showing each swimmer and their event count breakdown.
+    
+    Args:
+        individual_df: DataFrame with individual event assignments
+        relay_df: DataFrame with relay event assignments
+    
+    Returns:
+        DataFrame with columns: Swimmer, Individual_Events, Relay_Events, Total_Events, Event_List
+    """
+    try:
+        # Collect all swimmers and their events
+        swimmer_events = {}
+        
+        # Process individual events
+        if not individual_df.empty and 'Swimmer' in individual_df.columns:
+            for _, row in individual_df.iterrows():
+                swimmer = row['Swimmer']
+                event = row['Event']
+                
+                if swimmer not in swimmer_events:
+                    swimmer_events[swimmer] = {'individual': [], 'relay': []}
+                
+                swimmer_events[swimmer]['individual'].append(event)
+        
+        # Process relay events
+        if not relay_df.empty and 'Swimmer' in relay_df.columns:
+            for _, row in relay_df.iterrows():
+                swimmer = row['Swimmer']
+                relay = row['Relay']
+                leg = row.get('Leg', '')
+                
+                if swimmer not in swimmer_events:
+                    swimmer_events[swimmer] = {'individual': [], 'relay': []}
+                
+                # Format relay with leg info
+                relay_info = f"{relay} ({leg})" if leg else relay
+                swimmer_events[swimmer]['relay'].append(relay_info)
+        
+        # Build summary data
+        summary_data = []
+        for swimmer, events in swimmer_events.items():
+            individual_count = len(events['individual'])
+            relay_count = len(events['relay'])
+            total_count = individual_count + relay_count
+            
+            # Create event list string
+            all_events = []
+            if events['individual']:
+                all_events.extend(events['individual'])
+            if events['relay']:
+                all_events.extend(events['relay'])
+            
+            event_list = '; '.join(all_events)
+            
+            summary_data.append({
+                'Swimmer': swimmer,
+                'Individual_Events': individual_count,
+                'Relay_Events': relay_count,
+                'Total_Events': total_count,
+                'Event_List': event_list
+            })
+        
+        # Convert to DataFrame and sort
+        if summary_data:
+            summary_df = pd.DataFrame(summary_data)
+            summary_df = summary_df.sort_values(['Total_Events', 'Swimmer'], ascending=[False, True])
+            return summary_df
+        else:
+            return pd.DataFrame(columns=['Swimmer', 'Individual_Events', 'Relay_Events', 'Total_Events', 'Event_List'])
+            
+    except Exception as e:
+        print(f"❌ Error creating swimmer summary mapping: {e}")
+        return pd.DataFrame(columns=['Swimmer', 'Individual_Events', 'Relay_Events', 'Total_Events', 'Event_List'])
+
+
 def ensure_directory_exists(filepath):
     """Ensure the directory for the given filepath exists."""
     directory = os.path.dirname(filepath)
@@ -164,6 +312,23 @@ def export_lineup_to_txt(individual_df, relay_df, team_name="Team", filename=Non
             else:
                 f.write("No relay events to export.\n")
             
+            # Swimmer Event Summary
+            f.write("\n=== SWIMMER EVENT ASSIGNMENTS ===\n")
+            swimmer_summary = create_swimmer_summary_mapping(individual_df, relay_df)
+            if not swimmer_summary.empty:
+                for _, row in swimmer_summary.iterrows():
+                    f.write(f"\n{row['Swimmer']} ({row['Total_Events']} events total):\n")
+                    if row['Individual_Events'] > 0:
+                        individual_events = [e for e in row['Event_List'].split('; ') if not any(relay in e for relay in ['Relay'])]
+                        if individual_events:
+                            f.write(f"  Individual: {', '.join(individual_events)}\n")
+                    if row['Relay_Events'] > 0:
+                        relay_events = [e for e in row['Event_List'].split('; ') if any(relay in e for relay in ['Relay'])]
+                        if relay_events:
+                            f.write(f"  Relays: {', '.join(relay_events)}\n")
+            else:
+                f.write("No swimmer assignments to export.\n")
+            
             # Summary statistics
             f.write("\n=== LINEUP SUMMARY ===\n")
             if not individual_df.empty and 'Event' in individual_df.columns:
@@ -198,7 +363,7 @@ def export_lineup_to_txt(individual_df, relay_df, team_name="Team", filename=Non
 
 
 def export_lineup_to_excel(individual_df, relay_df, team_name="Team", filename=None):
-    """Export lineup to Excel file with multiple sheets."""
+    """Export lineup to Excel file with multiple sheets including swimmer event mapping."""
     if filename is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_team_name = "".join(c for c in team_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
@@ -223,6 +388,16 @@ def export_lineup_to_excel(individual_df, relay_df, team_name="Team", filename=N
                 export_relay = relay_df.copy()
                 export_relay = export_relay.sort_values(['Relay', 'Leg'])
                 export_relay.to_excel(writer, sheet_name='Relay Events', index=False)
+            
+            # Swimmer Event Mapping Sheet (Detailed)
+            swimmer_mapping = create_swimmer_event_mapping(individual_df, relay_df)
+            if not swimmer_mapping.empty:
+                swimmer_mapping.to_excel(writer, sheet_name='Swimmer Events', index=False)
+            
+            # Swimmer Summary Sheet (Condensed)
+            swimmer_summary = create_swimmer_summary_mapping(individual_df, relay_df)
+            if not swimmer_summary.empty:
+                swimmer_summary.to_excel(writer, sheet_name='Swimmer Summary', index=False)
             
             # Summary Sheet
             summary_data = []

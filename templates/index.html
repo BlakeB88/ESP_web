@@ -792,6 +792,8 @@
             }
         }
 
+        <!-- Updated Results Display Section from index.html -->
+
         function displayResults(result) {
             const resultsContent = document.getElementById('resultsContent');
             const resultsSection = document.getElementById('resultsSection');
@@ -826,6 +828,16 @@
                         
                         <div style="text-align: center; padding: 20px; background: #f0fdf4; border-radius: 10px; border: 2px solid #bbf7d0;">
                             <h5 style="color: #166534; margin-bottom: 15px;">📄 Download Lineup Files</h5>
+                            <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bbf7d0;">
+                                <p style="color: #166534; font-size: 0.9em; margin: 0; font-weight: 600;">📊 Excel Files Include:</p>
+                                <ul style="color: #166534; font-size: 0.85em; margin: 8px 0 0 0; padding-left: 20px; text-align: left;">
+                                    <li><strong>Individual Events:</strong> All individual event assignments</li>
+                                    <li><strong>Relay Events:</strong> Complete relay lineups with leg assignments</li>
+                                    <li><strong>Swimmer Events:</strong> Detailed mapping of each swimmer's events</li>
+                                    <li><strong>Swimmer Summary:</strong> Event count breakdown per swimmer</li>
+                                    <li><strong>Summary:</strong> Overall lineup statistics</li>
+                                </ul>
+                            </div>
                             <div>
                 `;
                 
@@ -833,7 +845,17 @@
                     result.output_files.forEach(filename => {
                         const fileType = filename.includes('.txt') ? 'Text File' : 'Excel File';
                         const icon = filename.includes('.txt') ? '📄' : '📊';
-                        html += `<a href="/api/download/${filename}" class="download-button">${icon} ${fileType}</a>`;
+                        const description = filename.includes('.txt') ? 
+                            'Coach-friendly text format with swimmer assignments' : 
+                            'Complete spreadsheet with multiple detailed sheets';
+                        html += `
+                            <div style="margin: 8px 0;">
+                                <a href="/api/download/${filename}" class="download-button">
+                                    ${icon} Download ${fileType}
+                                </a>
+                                <div style="font-size: 0.8em; color: #16803c; margin-top: 4px;">${description}</div>
+                            </div>
+                        `;
                     });
                 } else {
                     html += '<p style="color: #64748b;">No files available for download</p>';
@@ -884,6 +906,16 @@
                         
                         <div style="text-align: center; padding: 20px; background: #f0fdf4; border-radius: 10px; border: 2px solid #bbf7d0;">
                             <h5 style="color: #166534; margin-bottom: 15px;">📄 Download ${result.team_name} Lineup</h5>
+                            <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #bbf7d0;">
+                                <p style="color: #166534; font-size: 0.9em; margin: 0; font-weight: 600;">📊 Excel Files Include:</p>
+                                <ul style="color: #166534; font-size: 0.85em; margin: 8px 0 0 0; padding-left: 20px; text-align: left;">
+                                    <li><strong>Individual Events:</strong> Strategic individual event assignments</li>
+                                    <li><strong>Relay Events:</strong> Optimized relay lineups vs opponent</li>
+                                    <li><strong>Swimmer Events:</strong> Complete swimmer event mapping</li>
+                                    <li><strong>Swimmer Summary:</strong> Event workload per swimmer</li>
+                                    <li><strong>Summary:</strong> Strategic lineup overview</li>
+                                </ul>
+                            </div>
                             <div>
                 `;
                 
@@ -891,7 +923,17 @@
                     result.output_files.forEach(filename => {
                         const fileType = filename.includes('.txt') ? 'Text File' : 'Excel File';
                         const icon = filename.includes('.txt') ? '📄' : '📊';
-                        html += `<a href="/api/download/${filename}" class="download-button">${icon} ${fileType}</a>`;
+                        const description = filename.includes('.txt') ? 
+                            'Strategic lineup in text format' : 
+                            'Complete strategic analysis with swimmer mappings';
+                        html += `
+                            <div style="margin: 8px 0;">
+                                <a href="/api/download/${filename}" class="download-button">
+                                    ${icon} Download ${fileType}
+                                </a>
+                                <div style="font-size: 0.8em; color: #16803c; margin-top: 4px;">${description}</div>
+                            </div>
+                        `;
                     });
                 } else {
                     html += '<p style="color: #64748b;">No files available for download</p>';
