@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 
 def setup_chrome_driver():
     """Setup Chrome WebDriver with proper configuration for Render deployment"""
-    
+  
     options = Options()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
@@ -26,18 +26,19 @@ def setup_chrome_driver():
     options.add_argument('--disable-extensions')
     options.add_argument('--disable-plugins')
     options.add_argument('--disable-images')
-    options.add_argument('--disable-javascript')
     options.add_argument('--remote-debugging-port=9222')
     options.add_argument('--disable-web-security')
     options.add_argument('--disable-features=VizDisplayCompositor')
-    options.add_argument('--single-process')
     options.add_argument('--disable-background-timer-throttling')
     options.add_argument('--disable-backgrounding-occluded-windows')
     options.add_argument('--disable-renderer-backgrounding')
     options.add_argument('--disable-features=TranslateUI')
     options.add_argument('--disable-ipc-flooding-protection')
-    
-    # Comprehensive Chrome binary detection
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+  
+    # Chrome binary detection with better error handling
     chrome_paths = [
         os.environ.get('CHROME_BIN'),
         os.environ.get('GOOGLE_CHROME_BIN'),
@@ -45,53 +46,41 @@ def setup_chrome_driver():
         '/usr/bin/google-chrome',
         '/usr/bin/chromium-browser',
         '/usr/bin/chromium',
-        '/app/.apt/usr/bin/google-chrome',
-        '/app/.apt/usr/bin/google-chrome-stable',
         '/opt/google/chrome/google-chrome',
-        '/opt/google/chrome/chrome',
-        # Additional paths for various deployment environments
         '/usr/local/bin/google-chrome',
-        '/usr/local/bin/chrome',
-        '/snap/bin/chromium',
     ]
-    
+  
     chrome_binary = None
     print("[DEBUG] Searching for Chrome binary...")
-    
+  
     for path in chrome_paths:
-        if path and os.path.exists(path):
+        if path and os.path.exists(path) and os.access(path, os.X_OK):
             chrome_binary = path
-            print(f"[DEBUG] Found Chrome binary: {chrome_binary}")
+            print(f"[DEBUG] Found executable Chrome binary: {chrome_binary}")
             break
         elif path:
-            print(f"[DEBUG] Chrome path not found: {path}")
-    
+            print(f"[DEBUG] Chrome path not found or not executable: {path}")
+  
+    # Try 'which' command as fallback
     if not chrome_binary:
-        print("[DEBUG] No Chrome binary found in expected locations")
-        # Try to find Chrome using 'which' command
         try:
             import subprocess
-            result = subprocess.run(['which', 'google-chrome-stable'], 
-                                  capture_output=True, text=True, timeout=5)
-            if result.returncode == 0 and result.stdout.strip():
-                chrome_binary = result.stdout.strip()
-                print(f"[DEBUG] Found Chrome via 'which': {chrome_binary}")
-            else:
-                result = subprocess.run(['which', 'google-chrome'], 
-                                      capture_output=True, text=True, timeout=5)
+            for cmd in ['google-chrome-stable', 'google-chrome', 'chromium-browser']:
+                result = subprocess.run(['which', cmd], capture_output=True, text=True, timeout=5)
                 if result.returncode == 0 and result.stdout.strip():
                     chrome_binary = result.stdout.strip()
-                    print(f"[DEBUG] Found Chrome via 'which': {chrome_binary}")
+                    print(f"[DEBUG] Found Chrome via 'which {cmd}': {chrome_binary}")
+                    break
         except Exception as e:
             print(f"[DEBUG] 'which' command failed: {e}")
-    
+  
     if chrome_binary:
         options.binary_location = chrome_binary
         print(f"[DEBUG] Using Chrome binary: {chrome_binary}")
     else:
-        print("[WARNING] Chrome binary not found. Proceeding without setting binary_location.")
+        print("[ERROR] Chrome binary not found!")
         # List available binaries for debugging
-        debug_paths = ['/usr/bin', '/usr/local/bin', '/app/.apt/usr/bin', '/opt/google/chrome']
+        debug_paths = ['/usr/bin', '/usr/local/bin', '/opt/google/chrome']
         for location in debug_paths:
             if os.path.exists(location):
                 try:
@@ -100,65 +89,60 @@ def setup_chrome_driver():
                         print(f"[DEBUG] Chrome-related files in {location}: {files}")
                 except Exception as e:
                     print(f"[DEBUG] Error listing {location}: {e}")
-    
+      
+        raise Exception("Chrome binary not found. Please ensure Chrome is installed.")
+  
     # Environment debug information
     print(f"[DEBUG] Environment Debug Information:")
     print(f"[DEBUG] OS: {os.name}")
-    print(f"[DEBUG] Platform: {os.uname() if hasattr(os, 'uname') else 'N/A'}")
     print(f"[DEBUG] CHROME_BIN env: {os.environ.get('CHROME_BIN', 'Not set')}")
     print(f"[DEBUG] GOOGLE_CHROME_BIN env: {os.environ.get('GOOGLE_CHROME_BIN', 'Not set')}")
-    
-    # Try ChromeDriver setup with multiple approaches
+  
+    # Try to create WebDriver
     driver = None
-    
-    # Approach 1: Use webdriver-manager with service
+  
+    # Approach 1: Use ChromeDriverManager
     try:
-        chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
-        if chromedriver_path and os.path.exists(chromedriver_path):
-            service = Service(chromedriver_path)
-            print(f"[DEBUG] Using ChromeDriver from env: {chromedriver_path}")
-        else:
-            service = Service(ChromeDriverManager().install())
-            print("[DEBUG] Using ChromeDriverManager")
-        
+        print("[DEBUG] Attempting to create WebDriver with ChromeDriverManager...")
+        service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
-        print("[DEBUG] Successfully created Chrome WebDriver with service")
+        print("[DEBUG] Successfully created Chrome WebDriver with ChromeDriverManager")
         return driver
-        
     except Exception as e:
-        print(f"[DEBUG] webdriver-manager failed: {e}")
-    
-    # Approach 2: Try without explicit service (let Selenium find ChromeDriver)
+        print(f"[DEBUG] ChromeDriverManager failed: {e}")
+  
+    # Approach 2: Try without explicit service
     try:
+        print("[DEBUG] Attempting to create WebDriver without explicit service...")
         driver = webdriver.Chrome(options=options)
         print("[DEBUG] Successfully created Chrome WebDriver without explicit service")
         return driver
     except Exception as e:
-        print(f"[DEBUG] Chrome WebDriver creation failed: {e}")
-    
-    # Approach 3: Try with explicit ChromeDriver paths
+        print(f"[DEBUG] Chrome WebDriver creation without service failed: {e}")
+  
+    # Approach 3: Try with system ChromeDriver
     chromedriver_paths = [
+        os.environ.get('CHROMEDRIVER_PATH'),
         '/usr/bin/chromedriver',
         '/usr/local/bin/chromedriver',
-        '/app/.chromedriver/bin/chromedriver',
-        os.environ.get('CHROMEDRIVER_PATH'),
     ]
-    
+  
     for chromedriver_path in chromedriver_paths:
         if chromedriver_path and os.path.exists(chromedriver_path):
             try:
+                print(f"[DEBUG] Attempting to use ChromeDriver at: {chromedriver_path}")
                 service = Service(chromedriver_path)
                 driver = webdriver.Chrome(service=service, options=options)
                 print(f"[DEBUG] Successfully created Chrome WebDriver with {chromedriver_path}")
                 return driver
             except Exception as e:
                 print(f"[DEBUG] Failed with ChromeDriver at {chromedriver_path}: {e}")
-    
-    # If all else fails, raise an exception with helpful information
+  
+    # If all approaches fail
     raise Exception(
-        f"Cannot create Chrome WebDriver. Chrome binary: {chrome_binary or 'Not found'}. "
-        f"Please ensure Chrome is properly installed in the container. "
-        f"Environment variables: CHROME_BIN={os.environ.get('CHROME_BIN')}, "
+        f"Cannot create Chrome WebDriver. Chrome binary: {chrome_binary}. "
+        f"Please ensure Chrome and ChromeDriver are properly installed. "
+        f"Environment: CHROME_BIN={os.environ.get('CHROME_BIN')}, "
         f"GOOGLE_CHROME_BIN={os.environ.get('GOOGLE_CHROME_BIN')}"
     )
 
