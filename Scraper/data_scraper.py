@@ -1,4 +1,6 @@
 import re
+import os
+import shutil
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -32,6 +34,143 @@ EVENT_CODE_TO_NAME = {
     "5|200|1": "200 IM",
     "5|400|1": "400 IM"
 }
+
+def find_chrome_binary():
+    """
+    Find Chrome binary location across different environments.
+    Returns the path to Chrome binary or None if not found.
+    """
+    possible_paths = [
+        # Common Linux paths
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/opt/google/chrome/chrome',
+        '/snap/bin/chromium',
+        
+        # Heroku buildpack paths
+        '/app/.chrome-for-testing/chrome-linux64/chrome',
+        '/app/.chromedriver/bin/chromedriver',
+        
+        # Docker/container paths
+        '/usr/local/bin/chrome',
+        '/usr/local/bin/google-chrome',
+        
+        # Alternative locations
+        '/opt/chrome/chrome',
+        '/opt/chromium/chromium',
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path) and os.access(path, os.X_OK):
+            print(f"[DEBUG] Found Chrome binary at: {path}")
+            return path
+    
+    # Try using 'which' command to find chrome
+    try:
+        chrome_path = shutil.which('google-chrome') or shutil.which('chromium-browser') or shutil.which('chromium')
+        if chrome_path:
+            print(f"[DEBUG] Found Chrome binary via 'which': {chrome_path}")
+            return chrome_path
+    except Exception as e:
+        print(f"[DEBUG] 'which' command failed: {e}")
+    
+    print("[DEBUG] No Chrome binary found in common locations")
+    return None
+
+def setup_chrome_options():
+    """
+    Setup Chrome options for different deployment environments.
+    """
+    options = Options()
+    
+    # Find Chrome binary
+    chrome_binary = find_chrome_binary()
+    if chrome_binary:
+        options.binary_location = chrome_binary
+    else:
+        print("[WARNING] Chrome binary not found. Proceeding without setting binary_location.")
+        print("[WARNING] This may work if Chrome is in PATH or if using a managed service.")
+    
+    # Essential headless options
+    options.add_argument("--headless=new")  # Use new headless mode
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    
+    # Additional stability options for server environments
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-plugins")
+    options.add_argument("--disable-images")
+    options.add_argument("--disable-javascript")  # We don't need JS for basic scraping
+    options.add_argument("--disable-css")
+    options.add_argument("--single-process")
+    options.add_argument("--no-zygote")
+    options.add_argument("--disable-background-timer-throttling")
+    options.add_argument("--disable-backgrounding-occluded-windows")
+    options.add_argument("--disable-renderer-backgrounding")
+    
+    # Memory and performance optimizations
+    options.add_argument("--memory-pressure-off")
+    options.add_argument("--max_old_space_size=4096")
+    
+    # User agent for better compatibility
+    options.add_argument(
+        "user-agent=Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+    
+    # Disable images and other resources to speed up loading
+    prefs = {
+        "profile.managed_default_content_settings.images": 2,
+        "profile.managed_default_content_settings.stylesheets": 2,
+        "profile.managed_default_content_settings.cookies": 2,
+        "profile.managed_default_content_settings.javascript": 1,
+        "profile.managed_default_content_settings.plugins": 2,
+        "profile.managed_default_content_settings.popups": 2,
+        "profile.managed_default_content_settings.geolocation": 2,
+        "profile.managed_default_content_settings.notifications": 2,
+        "profile.managed_default_content_settings.media_stream": 2,
+    }
+    options.add_experimental_option("prefs", prefs)
+    
+    # Additional flags for cloud environments
+    options.add_argument("--remote-debugging-port=9222")
+    options.add_argument("--disable-web-security")
+    options.add_argument("--allow-running-insecure-content")
+    
+    return options
+
+def debug_environment():
+    """
+    Debug function to check the deployment environment.
+    """
+    print("[DEBUG] Environment Debug Information:")
+    print(f"[DEBUG] OS: {os.name}")
+    print(f"[DEBUG] Platform: {os.uname() if hasattr(os, 'uname') else 'Unknown'}")
+    
+    # Check for common environment variables
+    env_vars = ['DYNO', 'HEROKU_APP_NAME', 'GOOGLE_CHROME_BIN', 'CHROMEDRIVER_PATH']
+    for var in env_vars:
+        value = os.environ.get(var)
+        if value:
+            print(f"[DEBUG] {var}: {value}")
+    
+    # Check Chrome-related paths
+    chrome_binary = find_chrome_binary()
+    if chrome_binary:
+        print(f"[DEBUG] Chrome binary found: {chrome_binary}")
+    else:
+        print("[DEBUG] No Chrome binary found")
+    
+    # Check if chromedriver is available
+    try:
+        driver_path = ChromeDriverManager().install()
+        print(f"[DEBUG] ChromeDriver path: {driver_path}")
+    except Exception as e:
+        print(f"[DEBUG] ChromeDriver installation failed: {e}")
 
 def debug_url_and_event_extraction(url):
     """
@@ -78,37 +217,54 @@ def debug_url_and_event_extraction(url):
 
 def scrape_swimmer_times(url):
     """
-    Enhanced scrape swimmer times function with better debugging.
+    Enhanced scrape swimmer times function with better Chrome binary handling.
     """
     driver = None
     try:
         print(f"[DEBUG] Scraping swimmer times from: {url}")
         
+        # Debug environment first
+        debug_environment()
+        
         # Debug the URL and event extraction first
         event_code, event_name = debug_url_and_event_extraction(url)
         
-        # ── Step 1: Launch Chrome headless ───────────────────────────────────
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        # Add more realistic user agent
-        options.add_argument(
-            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        )
-        # Disable images to speed up loading
-        prefs = {"profile.managed_default_content_settings.images": 2}
-        options.add_experimental_option("prefs", prefs)
-
-        options.binary_location = "/usr/bin/google-chrome"
-
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options
-        )
+        # ── Step 1: Setup Chrome options with binary detection ───────────────────────────────────
+        options = setup_chrome_options()
+        
+        # Try to create the driver with better error handling
+        try:
+            # First, try with webdriver-manager
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=options)
+            print("[DEBUG] Successfully created Chrome driver with webdriver-manager")
+            
+        except Exception as e1:
+            print(f"[DEBUG] webdriver-manager failed: {e1}")
+            
+            # Fallback: try without specifying service
+            try:
+                driver = webdriver.Chrome(options=options)
+                print("[DEBUG] Successfully created Chrome driver without service")
+                
+            except Exception as e2:
+                print(f"[DEBUG] Chrome driver creation failed: {e2}")
+                
+                # Final fallback: try with environment variables if they exist
+                chrome_bin = os.environ.get('GOOGLE_CHROME_BIN')
+                chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
+                
+                if chrome_bin:
+                    options.binary_location = chrome_bin
+                    print(f"[DEBUG] Using GOOGLE_CHROME_BIN: {chrome_bin}")
+                
+                if chromedriver_path:
+                    service = Service(chromedriver_path)
+                    driver = webdriver.Chrome(service=service, options=options)
+                    print(f"[DEBUG] Using CHROMEDRIVER_PATH: {chromedriver_path}")
+                else:
+                    driver = webdriver.Chrome(options=options)
+                    print("[DEBUG] Final fallback driver creation successful")
 
         # ── Step 2: Navigate and wait for content ───────────────────────────────────
         driver.get(url)
@@ -204,6 +360,20 @@ def scrape_swimmer_times(url):
 
     except Exception as e:
         print(f"[DEBUG] Exception inside scrape_swimmer_times: {e}")
+        print(f"[DEBUG] Exception type: {type(e).__name__}")
+        
+        # Provide specific guidance based on the error
+        if "chrome binary" in str(e).lower():
+            print("\n[SOLUTION] Chrome binary not found. Try one of these fixes:")
+            print("1. Install Chrome: apt-get update && apt-get install -y google-chrome-stable")
+            print("2. Set GOOGLE_CHROME_BIN environment variable to Chrome location")
+            print("3. Use a Chrome buildpack if deploying to Heroku")
+            print("4. Consider switching to a different hosting service with Chrome pre-installed")
+        elif "chromedriver" in str(e).lower():
+            print("\n[SOLUTION] ChromeDriver issue. Try:")
+            print("1. Set CHROMEDRIVER_PATH environment variable")
+            print("2. Use webdriver-manager to auto-download ChromeDriver")
+        
         raise
 
     finally:
@@ -214,6 +384,7 @@ def scrape_swimmer_times(url):
             except Exception as e_quit:
                 print(f"[DEBUG] Exception during driver.quit(): {e_quit}")
 
+# Keep all your existing extraction functions exactly as they were
 def extract_times_from_page_text(soup, default_event="Unknown Event"):
     """
     New method: Extract times from any text on the page that matches swimmer patterns.
@@ -254,28 +425,6 @@ def extract_times_from_page_text(soup, default_event="Unknown Event"):
     
     return data
 
-# Keep all your existing extraction functions but add this debug function:
-
-def debug_swimcloud_event_codes():
-    """
-    Helper function to debug what event codes SwimCloud actually uses.
-    Call this to see if there are patterns we're missing.
-    """
-    # This would be used to manually check various event URLs
-    common_events = [
-        "1|50|1", "1|100|1", "1|200|1", "1|500|1", "1|1000|1", "1|1500|1", "1|1650|1",
-        "2|50|1", "2|100|1", "2|200|1", 
-        "3|50|1", "3|100|1", "3|200|1",
-        "4|50|1", "4|100|1", "4|200|1",
-        "5|200|1", "5|400|1"
-    ]
-    
-    print("Event code mapping:")
-    for code in common_events:
-        name = EVENT_CODE_TO_NAME.get(code, "MISSING")
-        print(f"  {code} -> {name}")
-
-# Copy all your existing extraction functions here:
 def extract_swimcloud_times_table(soup, default_event="Unknown Event"):
     """
     Extract times from SwimCloud's specific table structure with robust parsing.
@@ -488,7 +637,7 @@ def extract_event_from_row(row):
 
 # Test the event code debugging
 if __name__ == "__main__":
-    debug_swimcloud_event_codes()
+    debug_environment()
     
     # Test URL parsing
     test_url = "https://www.swimcloud.com/team/34/times/?dont_group=false&event_course=Y&gender=M&page=1&season_id=28&team_id=34&year=2025&region=&tag_id=&event=1%7C1650%7C1"
