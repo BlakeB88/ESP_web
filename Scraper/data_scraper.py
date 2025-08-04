@@ -6,6 +6,11 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 import time
 import urllib.parse
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
 
 # Updated Map SwimCloud event codes to event names - FIXED 1500 to 1650 mapping
 EVENT_CODE_TO_NAME = {
@@ -97,6 +102,8 @@ def scrape_swimmer_times(url):
         # Disable images to speed up loading
         prefs = {"profile.managed_default_content_settings.images": 2}
         options.add_experimental_option("prefs", prefs)
+
+        options.binary_location = "/usr/bin/google-chrome"
 
         driver = webdriver.Chrome(
             service=Service(ChromeDriverManager().install()),
