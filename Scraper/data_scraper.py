@@ -1,644 +1,545 @@
-import re
 import os
-import shutil
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
 import time
-import urllib.parse
+import json
+import re
+from urllib.parse import urlparse, parse_qs, unquote
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
+import requests
+from bs4 import BeautifulSoup
 
-
-# Updated Map SwimCloud event codes to event names - FIXED 1500 to 1650 mapping
-EVENT_CODE_TO_NAME = {
-    "1|50|1": "50 Free",      # Changed from "50 free"
-    "1|100|1": "100 Free",    # Changed from "100 free"
-    "1|200|1": "200 Free",    # Changed from "200 free"
-    "1|500|1": "500 Free",    # Changed from "500 free"
-    "1|1000|1": "1000 Free",  # Changed from "1000 free"
-    "1|1500|1": "1650 Free",  # Changed from "1650 free"
-    "2|50|1": "50 Back",      # Changed from "50 back"
-    "2|100|1": "100 Back",    # Changed from "100 back"
-    "2|200|1": "200 Back",    # Changed from "200 back"
-    "3|50|1": "50 Breast",    # Changed from "50 breast"
-    "3|100|1": "100 Breast",  # Changed from "100 breast"
-    "3|200|1": "200 Breast",  # Changed from "200 breast"
-    "4|50|1": "50 Fly",       # Changed from "50 fly"
-    "4|100|1": "100 Fly",     # Changed from "100 fly"
-    "4|200|1": "200 Fly",     # Changed from "200 fly"
-    "5|200|1": "200 IM",
-    "5|400|1": "400 IM"
-}
-
-def find_chrome_binary():
-    """
-    Find Chrome binary location across different environments.
-    Returns the path to Chrome binary or None if not found.
-    """
-    possible_paths = [
-        # Common Linux paths
-        '/usr/bin/google-chrome',
+def setup_chrome_driver():
+    """Setup Chrome WebDriver with proper configuration for Render deployment"""
+    
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--disable-extensions')
+    options.add_argument('--disable-plugins')
+    options.add_argument('--disable-images')
+    options.add_argument('--disable-javascript')
+    options.add_argument('--remote-debugging-port=9222')
+    options.add_argument('--disable-web-security')
+    options.add_argument('--disable-features=VizDisplayCompositor')
+    options.add_argument('--single-process')
+    options.add_argument('--disable-background-timer-throttling')
+    options.add_argument('--disable-backgrounding-occluded-windows')
+    options.add_argument('--disable-renderer-backgrounding')
+    options.add_argument('--disable-features=TranslateUI')
+    options.add_argument('--disable-ipc-flooding-protection')
+    
+    # Comprehensive Chrome binary detection
+    chrome_paths = [
+        os.environ.get('CHROME_BIN'),
+        os.environ.get('GOOGLE_CHROME_BIN'),
         '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
         '/usr/bin/chromium-browser',
         '/usr/bin/chromium',
+        '/app/.apt/usr/bin/google-chrome',
+        '/app/.apt/usr/bin/google-chrome-stable',
+        '/opt/google/chrome/google-chrome',
         '/opt/google/chrome/chrome',
-        '/snap/bin/chromium',
-        
-        # Heroku buildpack paths
-        '/app/.chrome-for-testing/chrome-linux64/chrome',
-        '/app/.chromedriver/bin/chromedriver',
-        
-        # Docker/container paths
-        '/usr/local/bin/chrome',
+        # Additional paths for various deployment environments
         '/usr/local/bin/google-chrome',
-        
-        # Alternative locations
-        '/opt/chrome/chrome',
-        '/opt/chromium/chromium',
+        '/usr/local/bin/chrome',
+        '/snap/bin/chromium',
     ]
     
-    for path in possible_paths:
-        if os.path.exists(path) and os.access(path, os.X_OK):
-            print(f"[DEBUG] Found Chrome binary at: {path}")
-            return path
+    chrome_binary = None
+    print("[DEBUG] Searching for Chrome binary...")
     
-    # Try using 'which' command to find chrome
-    try:
-        chrome_path = shutil.which('google-chrome') or shutil.which('chromium-browser') or shutil.which('chromium')
-        if chrome_path:
-            print(f"[DEBUG] Found Chrome binary via 'which': {chrome_path}")
-            return chrome_path
-    except Exception as e:
-        print(f"[DEBUG] 'which' command failed: {e}")
+    for path in chrome_paths:
+        if path and os.path.exists(path):
+            chrome_binary = path
+            print(f"[DEBUG] Found Chrome binary: {chrome_binary}")
+            break
+        elif path:
+            print(f"[DEBUG] Chrome path not found: {path}")
     
-    print("[DEBUG] No Chrome binary found in common locations")
-    return None
-
-def setup_chrome_options():
-    """
-    Setup Chrome options for different deployment environments.
-    """
-    options = Options()
+    if not chrome_binary:
+        print("[DEBUG] No Chrome binary found in expected locations")
+        # Try to find Chrome using 'which' command
+        try:
+            import subprocess
+            result = subprocess.run(['which', 'google-chrome-stable'], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and result.stdout.strip():
+                chrome_binary = result.stdout.strip()
+                print(f"[DEBUG] Found Chrome via 'which': {chrome_binary}")
+            else:
+                result = subprocess.run(['which', 'google-chrome'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0 and result.stdout.strip():
+                    chrome_binary = result.stdout.strip()
+                    print(f"[DEBUG] Found Chrome via 'which': {chrome_binary}")
+        except Exception as e:
+            print(f"[DEBUG] 'which' command failed: {e}")
     
-    # Find Chrome binary
-    chrome_binary = find_chrome_binary()
     if chrome_binary:
         options.binary_location = chrome_binary
+        print(f"[DEBUG] Using Chrome binary: {chrome_binary}")
     else:
         print("[WARNING] Chrome binary not found. Proceeding without setting binary_location.")
-        print("[WARNING] This may work if Chrome is in PATH or if using a managed service.")
+        # List available binaries for debugging
+        debug_paths = ['/usr/bin', '/usr/local/bin', '/app/.apt/usr/bin', '/opt/google/chrome']
+        for location in debug_paths:
+            if os.path.exists(location):
+                try:
+                    files = [f for f in os.listdir(location) if 'chrome' in f.lower() or 'chromium' in f.lower()]
+                    if files:
+                        print(f"[DEBUG] Chrome-related files in {location}: {files}")
+                except Exception as e:
+                    print(f"[DEBUG] Error listing {location}: {e}")
     
-    # Essential headless options
-    options.add_argument("--headless=new")  # Use new headless mode
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    
-    # Additional stability options for server environments
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-plugins")
-    options.add_argument("--disable-images")
-    options.add_argument("--disable-javascript")  # We don't need JS for basic scraping
-    options.add_argument("--disable-css")
-    options.add_argument("--single-process")
-    options.add_argument("--no-zygote")
-    options.add_argument("--disable-background-timer-throttling")
-    options.add_argument("--disable-backgrounding-occluded-windows")
-    options.add_argument("--disable-renderer-backgrounding")
-    
-    # Memory and performance optimizations
-    options.add_argument("--memory-pressure-off")
-    options.add_argument("--max_old_space_size=4096")
-    
-    # User agent for better compatibility
-    options.add_argument(
-        "user-agent=Mozilla/5.0 (X11; Linux x86_64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
-    
-    # Disable images and other resources to speed up loading
-    prefs = {
-        "profile.managed_default_content_settings.images": 2,
-        "profile.managed_default_content_settings.stylesheets": 2,
-        "profile.managed_default_content_settings.cookies": 2,
-        "profile.managed_default_content_settings.javascript": 1,
-        "profile.managed_default_content_settings.plugins": 2,
-        "profile.managed_default_content_settings.popups": 2,
-        "profile.managed_default_content_settings.geolocation": 2,
-        "profile.managed_default_content_settings.notifications": 2,
-        "profile.managed_default_content_settings.media_stream": 2,
-    }
-    options.add_experimental_option("prefs", prefs)
-    
-    # Additional flags for cloud environments
-    options.add_argument("--remote-debugging-port=9222")
-    options.add_argument("--disable-web-security")
-    options.add_argument("--allow-running-insecure-content")
-    
-    return options
-
-def debug_environment():
-    """
-    Debug function to check the deployment environment.
-    """
-    print("[DEBUG] Environment Debug Information:")
+    # Environment debug information
+    print(f"[DEBUG] Environment Debug Information:")
     print(f"[DEBUG] OS: {os.name}")
-    print(f"[DEBUG] Platform: {os.uname() if hasattr(os, 'uname') else 'Unknown'}")
+    print(f"[DEBUG] Platform: {os.uname() if hasattr(os, 'uname') else 'N/A'}")
+    print(f"[DEBUG] CHROME_BIN env: {os.environ.get('CHROME_BIN', 'Not set')}")
+    print(f"[DEBUG] GOOGLE_CHROME_BIN env: {os.environ.get('GOOGLE_CHROME_BIN', 'Not set')}")
     
-    # Check for common environment variables
-    env_vars = ['DYNO', 'HEROKU_APP_NAME', 'GOOGLE_CHROME_BIN', 'CHROMEDRIVER_PATH']
-    for var in env_vars:
-        value = os.environ.get(var)
-        if value:
-            print(f"[DEBUG] {var}: {value}")
+    # Try ChromeDriver setup with multiple approaches
+    driver = None
     
-    # Check Chrome-related paths
-    chrome_binary = find_chrome_binary()
-    if chrome_binary:
-        print(f"[DEBUG] Chrome binary found: {chrome_binary}")
-    else:
-        print("[DEBUG] No Chrome binary found")
-    
-    # Check if chromedriver is available
+    # Approach 1: Use webdriver-manager with service
     try:
-        driver_path = ChromeDriverManager().install()
-        print(f"[DEBUG] ChromeDriver path: {driver_path}")
-    except Exception as e:
-        print(f"[DEBUG] ChromeDriver installation failed: {e}")
-
-def debug_url_and_event_extraction(url):
-    """
-    Debug function to better understand URL parsing and event extraction.
-    """
-    print(f"[DEBUG] Original URL: {url}")
-    
-    # Parse the URL to extract parameters
-    from urllib.parse import urlparse, parse_qs
-    parsed_url = urlparse(url)
-    query_params = parse_qs(parsed_url.query)
-    
-    print(f"[DEBUG] Parsed query parameters: {query_params}")
-    
-    # Look for event parameter
-    if 'event' in query_params:
-        raw_event = query_params['event'][0]
-        print(f"[DEBUG] Raw event parameter: {raw_event}")
-        
-        # URL decode it
-        decoded_event = urllib.parse.unquote(raw_event)
-        print(f"[DEBUG] URL decoded event: {decoded_event}")
-        
-        # Check if it's in our mapping
-        if decoded_event in EVENT_CODE_TO_NAME:
-            event_name = EVENT_CODE_TO_NAME[decoded_event]
-            print(f"[DEBUG] Found event name: {event_name}")
+        chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
+        if chromedriver_path and os.path.exists(chromedriver_path):
+            service = Service(chromedriver_path)
+            print(f"[DEBUG] Using ChromeDriver from env: {chromedriver_path}")
         else:
-            print(f"[DEBUG] Event code '{decoded_event}' not found in mapping!")
-            print(f"[DEBUG] Available event codes: {list(EVENT_CODE_TO_NAME.keys())}")
-            event_name = f"Unknown ({decoded_event})"
+            service = Service(ChromeDriverManager().install())
+            print("[DEBUG] Using ChromeDriverManager")
         
-        return decoded_event, event_name
+        driver = webdriver.Chrome(service=service, options=options)
+        print("[DEBUG] Successfully created Chrome WebDriver with service")
+        return driver
+        
+    except Exception as e:
+        print(f"[DEBUG] webdriver-manager failed: {e}")
     
-    # Fallback to regex method
-    m = re.search(r"event=([^&]+)", url)
-    if m:
-        raw_code = m.group(1).replace("%7C", "|")
-        print(f"[DEBUG] Regex extracted event code: {raw_code}")
-        event_name = EVENT_CODE_TO_NAME.get(raw_code, f"Unknown ({raw_code})")
-        return raw_code, event_name
+    # Approach 2: Try without explicit service (let Selenium find ChromeDriver)
+    try:
+        driver = webdriver.Chrome(options=options)
+        print("[DEBUG] Successfully created Chrome WebDriver without explicit service")
+        return driver
+    except Exception as e:
+        print(f"[DEBUG] Chrome WebDriver creation failed: {e}")
     
-    return None, "Unknown Event"
+    # Approach 3: Try with explicit ChromeDriver paths
+    chromedriver_paths = [
+        '/usr/bin/chromedriver',
+        '/usr/local/bin/chromedriver',
+        '/app/.chromedriver/bin/chromedriver',
+        os.environ.get('CHROMEDRIVER_PATH'),
+    ]
+    
+    for chromedriver_path in chromedriver_paths:
+        if chromedriver_path and os.path.exists(chromedriver_path):
+            try:
+                service = Service(chromedriver_path)
+                driver = webdriver.Chrome(service=service, options=options)
+                print(f"[DEBUG] Successfully created Chrome WebDriver with {chromedriver_path}")
+                return driver
+            except Exception as e:
+                print(f"[DEBUG] Failed with ChromeDriver at {chromedriver_path}: {e}")
+    
+    # If all else fails, raise an exception with helpful information
+    raise Exception(
+        f"Cannot create Chrome WebDriver. Chrome binary: {chrome_binary or 'Not found'}. "
+        f"Please ensure Chrome is properly installed in the container. "
+        f"Environment variables: CHROME_BIN={os.environ.get('CHROME_BIN')}, "
+        f"GOOGLE_CHROME_BIN={os.environ.get('GOOGLE_CHROME_BIN')}"
+    )
+
+def extract_event_name_from_url(url):
+    """Extract event name from SwimCloud URL"""
+    try:
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+        
+        print(f"[DEBUG] Original URL: {url}")
+        print(f"[DEBUG] Parsed query parameters: {query_params}")
+        
+        if 'event' in query_params:
+            raw_event = query_params['event'][0]
+            print(f"[DEBUG] Raw event parameter: {raw_event}")
+            
+            # URL decode the event parameter
+            decoded_event = unquote(raw_event)
+            print(f"[DEBUG] URL decoded event: {decoded_event}")
+            
+            # Event format is typically: stroke_id|distance|course_id
+            # Examples: "1|50|1" = 50 Free, "4|200|1" = 200 IM
+            event_mapping = {
+                # Freestyle events
+                "1|50|1": "50 Free",
+                "1|100|1": "100 Free", 
+                "1|200|1": "200 Free",
+                "1|500|1": "500 Free",
+                "1|1000|1": "1000 Free",
+                "1|1650|1": "1650 Free",
+                
+                # Backstroke events
+                "2|50|1": "50 Back",
+                "2|100|1": "100 Back",
+                "2|200|1": "200 Back",
+                
+                # Breaststroke events
+                "3|50|1": "50 Breast",
+                "3|100|1": "100 Breast", 
+                "3|200|1": "200 Breast",
+                
+                # Butterfly events
+                "4|50|1": "50 Fly",
+                "4|100|1": "100 Fly",
+                "4|200|1": "200 Fly",
+                
+                # IM events (Individual Medley uses stroke_id 5)
+                "5|100|1": "100 IM",
+                "5|200|1": "200 IM",
+                "5|400|1": "400 IM",
+            }
+            
+            if decoded_event in event_mapping:
+                event_name = event_mapping[decoded_event]
+                print(f"[DEBUG] Found event name: {event_name}")
+                return event_name
+            else:
+                print(f"[DEBUG] Unknown event code: {decoded_event}")
+                return "Unknown Event"
+        
+        return "Unknown Event"
+    except Exception as e:
+        print(f"[DEBUG] Error extracting event name: {e}")
+        return "Unknown Event"
+
+def test_url_accessibility(url, max_retries=3):
+    """Test if URL is accessible and returns expected content"""
+    for attempt in range(max_retries):
+        try:
+            print(f"[DEBUG] Testing URL (attempt {attempt + 1}): {url}")
+            
+            # First test with requests
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15'
+            }
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                # Look for time indicators in the HTML
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Check for common time patterns (MM:SS.ss format)
+                time_pattern = r'\d{1,2}:\d{2}\.\d{2}'
+                time_matches = re.findall(time_pattern, response.text)
+                
+                # Also look for time elements or classes that might contain times
+                time_elements = soup.find_all(['td', 'div', 'span'], class_=re.compile(r'time|result', re.I))
+                
+                print(f"[DEBUG] Found {len(time_matches)} time patterns")
+                print(f"[DEBUG] Found {len(time_elements)} time elements")
+                
+                if time_matches or time_elements:
+                    print(f"[DEBUG] URL appears to have timing data")
+                    return True, len(time_matches) + len(time_elements)
+                else:
+                    print(f"[DEBUG] No timing data found in response")
+                    
+            else:
+                print(f"[DEBUG] HTTP {response.status_code} response")
+                
+        except Exception as e:
+            print(f"[DEBUG] URL test failed (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(2)
+                
+    return False, 0
 
 def scrape_swimmer_times(url):
     """
-    Enhanced scrape swimmer times function with better Chrome binary handling.
+    Scrape swimmer times from SwimCloud URL
+    Returns a list of dictionaries containing swimmer data
     """
     driver = None
+    
     try:
+        # Extract event name from URL for context
+        event_name = extract_event_name_from_url(url)
+        print(f"[DEBUG] Scraping event: {event_name}")
+        
+        # Test URL accessibility first
+        print(f"[DEBUG] Testing URL: {url}")
+        is_accessible, indicator_count = test_url_accessibility(url)
+        
+        if is_accessible:
+            print(f"[DEBUG] Found {indicator_count} time indicators")
+            print(f"[DEBUG] Found {max(0, indicator_count - 1)} time entries")  # Subtract header
+            print(f"[DEBUG] Working URL confirmed: {url}")
+        else:
+            print(f"[WARNING] URL may not contain expected data: {url}")
+        
         print(f"[DEBUG] Scraping swimmer times from: {url}")
         
-        # Debug environment first
-        debug_environment()
+        # Setup WebDriver
+        print(f"[DEBUG] Setting up Chrome WebDriver...")
+        driver = setup_chrome_driver()
         
-        # Debug the URL and event extraction first
-        event_code, event_name = debug_url_and_event_extraction(url)
-        
-        # ── Step 1: Setup Chrome options with binary detection ───────────────────────────────────
-        options = setup_chrome_options()
-        
-        # Try to create the driver with better error handling
-        try:
-            # First, try with webdriver-manager
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=options)
-            print("[DEBUG] Successfully created Chrome driver with webdriver-manager")
-            
-        except Exception as e1:
-            print(f"[DEBUG] webdriver-manager failed: {e1}")
-            
-            # Fallback: try without specifying service
-            try:
-                driver = webdriver.Chrome(options=options)
-                print("[DEBUG] Successfully created Chrome driver without service")
-                
-            except Exception as e2:
-                print(f"[DEBUG] Chrome driver creation failed: {e2}")
-                
-                # Final fallback: try with environment variables if they exist
-                chrome_bin = os.environ.get('GOOGLE_CHROME_BIN')
-                chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
-                
-                if chrome_bin:
-                    options.binary_location = chrome_bin
-                    print(f"[DEBUG] Using GOOGLE_CHROME_BIN: {chrome_bin}")
-                
-                if chromedriver_path:
-                    service = Service(chromedriver_path)
-                    driver = webdriver.Chrome(service=service, options=options)
-                    print(f"[DEBUG] Using CHROMEDRIVER_PATH: {chromedriver_path}")
-                else:
-                    driver = webdriver.Chrome(options=options)
-                    print("[DEBUG] Final fallback driver creation successful")
-
-        # ── Step 2: Navigate and wait for content ───────────────────────────────────
+        # Navigate to URL
+        print(f"[DEBUG] Navigating to URL...")
         driver.get(url)
         
-        # Wait longer and check for different loading states
-        print("[DEBUG] Waiting for page to load...")
+        # Wait for page to load
+        print(f"[DEBUG] Waiting for page to load...")
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+        except TimeoutException:
+            print("[WARNING] Timeout waiting for page body, continuing anyway...")
+        
+        # Give additional time for dynamic content
         time.sleep(3)
         
-        # Check if we got redirected or if there's a "No times" message
-        current_url = driver.current_url
-        print(f"[DEBUG] Current URL after load: {current_url}")
+        # Extract swimmer data
+        swimmers_data = []
         
-        # Look for loading indicators or "No times" messages
         try:
-            no_times_element = driver.find_element("xpath", "//*[contains(text(), 'No times') or contains(text(), 'no times')]")
-            if no_times_element:
-                print("[DEBUG] Found 'No times' message on page")
-        except:
-            pass
+            # Look for common table structures used by SwimCloud
+            # Try multiple selectors to find swimmer data
+            selectors_to_try = [
+                "table tbody tr",  # Standard table rows
+                ".time-row",       # SwimCloud specific class
+                ".athlete-row",    # Alternative class name
+                "tr[class*='time']", # Any row with 'time' in class
+                "tr[class*='athlete']", # Any row with 'athlete' in class
+            ]
+            
+            rows_found = []
+            for selector in selectors_to_try:
+                try:
+                    rows = driver.find_elements(By.CSS_SELECTOR, selector)
+                    if rows:
+                        print(f"[DEBUG] Found {len(rows)} rows with selector: {selector}")
+                        rows_found = rows
+                        break
+                except NoSuchElementException:
+                    continue
+            
+            if not rows_found:
+                # Fallback: get all table rows
+                rows_found = driver.find_elements(By.CSS_SELECTOR, "tr")
+                print(f"[DEBUG] Fallback: Found {len(rows_found)} total table rows")
+            
+            # Process each row
+            for i, row in enumerate(rows_found):
+                try:
+                    row_text = row.text.strip()
+                    if not row_text or row_text.lower() in ['name', 'athlete', 'time', 'year']:
+                        continue  # Skip headers and empty rows
+                    
+                    # Look for time pattern in the row
+                    time_pattern = r'(\d{1,2}):(\d{2})\.(\d{2})'
+                    time_match = re.search(time_pattern, row_text)
+                    
+                    if time_match:
+                        # Extract swimmer name (usually first part of row text)
+                        cells = row.find_elements(By.TAG_NAME, "td")
+                        
+                        swimmer_data = {
+                            'name': '',
+                            'time': time_match.group(0),
+                            'event': event_name,
+                            'year': '',
+                            'additional_info': row_text
+                        }
+                        
+                        # Try to extract structured data from cells
+                        if len(cells) >= 2:
+                            # Typically: Name | Time | Year | Other info
+                            swimmer_data['name'] = cells[0].text.strip()
+                            
+                            # Look for year information
+                            for cell in cells:
+                                cell_text = cell.text.strip()
+                                if re.match(r'^\d{4}$', cell_text):  # 4-digit year
+                                    swimmer_data['year'] = cell_text
+                                    break
+                                elif any(year in cell_text for year in ['FR', 'SO', 'JR', 'SR']):
+                                    swimmer_data['year'] = cell_text
+                                    break
+                        else:
+                            # Parse from combined text
+                            parts = row_text.split()
+                            if len(parts) >= 2:
+                                # Assume first part(s) are name, look for time
+                                name_parts = []
+                                for part in parts:
+                                    if not re.search(time_pattern, part):
+                                        name_parts.append(part)
+                                    else:
+                                        break
+                                swimmer_data['name'] = ' '.join(name_parts[:2])  # Take first 2 parts as name
+                        
+                        if swimmer_data['name']:  # Only add if we found a name
+                            swimmers_data.append(swimmer_data)
+                            print(f"[DEBUG] Extracted: {swimmer_data['name']} - {swimmer_data['time']}")
+                
+                except Exception as e:
+                    print(f"[DEBUG] Error processing row {i}: {e}")
+                    continue
         
-        # Wait a bit more for dynamic content
-        time.sleep(2)
+        except Exception as e:
+            print(f"[ERROR] Error extracting swimmer data: {e}")
+            
+            # Fallback: try to get page source and parse with BeautifulSoup
+            try:
+                print("[DEBUG] Attempting fallback parsing...")
+                page_source = driver.page_source
+                soup = BeautifulSoup(page_source, 'html.parser')
+                
+                # Look for time patterns in the entire page
+                time_pattern = r'(\d{1,2}:\d{2}\.\d{2})'
+                times = re.findall(time_pattern, page_source)
+                
+                print(f"[DEBUG] Fallback found {len(times)} time patterns")
+                
+                # Create basic entries for found times
+                for i, time_str in enumerate(times[:10]):  # Limit to first 10
+                    swimmers_data.append({
+                        'name': f'Swimmer {i+1}',
+                        'time': time_str,
+                        'event': event_name,
+                        'year': '',
+                        'additional_info': 'Parsed from fallback method'
+                    })
+                    
+            except Exception as fallback_error:
+                print(f"[ERROR] Fallback parsing also failed: {fallback_error}")
         
-        page_html = driver.page_source
-
-        # Always save out whatever we just got, so you can inspect it.
-        with open("debug_swimcloud_page.html", "w", encoding="utf-8") as f:
-            f.write(page_html)
-        print("[DEBUG] Saved page content to debug_swimcloud_page.html")
-
-        # ── Step 3: Parse with BeautifulSoup ─────────────────────────────────
-        soup = BeautifulSoup(page_html, "html.parser")
+        print(f"[DEBUG] Successfully extracted {len(swimmers_data)} swimmer records")
+        return swimmers_data
         
-        # Debug: Look for key elements that indicate what's on the page
-        print("[DEBUG] Looking for key page elements...")
-        
-        # Check for "No times" message
-        no_times_elements = soup.find_all(text=re.compile(r"No times|no times", re.I))
-        if no_times_elements:
-            print(f"[DEBUG] Found 'No times' text: {no_times_elements}")
-        
-        # Check for filter information
-        filter_elements = soup.find_all(text=re.compile(r"Filter|filter", re.I))
-        if filter_elements:
-            print(f"[DEBUG] Found filter-related text")
-        
-        # Look for any tables
-        tables = soup.find_all("table")
-        print(f"[DEBUG] Found {len(tables)} tables on page")
-        
-        # Look for swimmer data in various formats
-        swimmer_links = soup.find_all("a", href=re.compile(r"/swimmer/\d+"))
-        if swimmer_links:
-            print(f"[DEBUG] Found {len(swimmer_links)} swimmer links")
-        else:
-            print("[DEBUG] No swimmer links found")
-
-        # ── Step 4: Try different extraction methods ─────────────────────────────────
-        print(f"[DEBUG] Event name from URL: {event_name}")
-
-        # First attempt: look for the standard SwimCloud <table> layout
-        times_data = extract_swimcloud_times_table(soup, default_event=event_name)
-        if times_data and len(times_data) > 0:
-            print(f"[DEBUG] Found {len(times_data)} time records from SwimCloud table")
-            return times_data
-
-        # Second attempt: look for any <table> on the page that has times
-        times_data = extract_times_from_any_table(soup, default_event=event_name)
-        if times_data and len(times_data) > 0:
-            print(f"[DEBUG] Found {len(times_data)} time records from general tables")
-            return times_data
-
-        # Third attempt: maybe the times are embedded in a <script> tag
-        times_data = extract_times_from_scripts(soup)
-        if times_data and len(times_data) > 0:
-            print(f"[DEBUG] Found {len(times_data)} time records from scripts")
-            return times_data
-
-        # Fourth attempt: Look for any time-like patterns in the entire page
-        times_data = extract_times_from_page_text(soup, default_event=event_name)
-        if times_data and len(times_data) > 0:
-            print(f"[DEBUG] Found {len(times_data)} time records from page text")
-            return times_data
-
-        # If we reach here, no times were found
-        print("[DEBUG] No time data found using any method → returning empty list")
-        
-        # Final debug: show some of the page content
-        page_text = soup.get_text()[:1000]  # First 1000 characters
-        print(f"[DEBUG] First 1000 characters of page: {page_text}")
-        
-        return []
-
     except Exception as e:
-        print(f"[DEBUG] Exception inside scrape_swimmer_times: {e}")
-        print(f"[DEBUG] Exception type: {type(e).__name__}")
+        print(f"[ERROR] Critical error in scrape_swimmer_times: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
         
-        # Provide specific guidance based on the error
-        if "chrome binary" in str(e).lower():
-            print("\n[SOLUTION] Chrome binary not found. Try one of these fixes:")
-            print("1. Install Chrome: apt-get update && apt-get install -y google-chrome-stable")
-            print("2. Set GOOGLE_CHROME_BIN environment variable to Chrome location")
-            print("3. Use a Chrome buildpack if deploying to Heroku")
-            print("4. Consider switching to a different hosting service with Chrome pre-installed")
-        elif "chromedriver" in str(e).lower():
-            print("\n[SOLUTION] ChromeDriver issue. Try:")
-            print("1. Set CHROMEDRIVER_PATH environment variable")
-            print("2. Use webdriver-manager to auto-download ChromeDriver")
-        
-        raise
-
     finally:
         if driver:
             try:
                 driver.quit()
-                print("[DEBUG] driver.quit() successful")
-            except Exception as e_quit:
-                print(f"[DEBUG] Exception during driver.quit(): {e_quit}")
+                print("[DEBUG] WebDriver closed successfully")
+            except:
+                print("[WARNING] Error closing WebDriver")
 
-# Keep all your existing extraction functions exactly as they were
-def extract_times_from_page_text(soup, default_event="Unknown Event"):
+def scrape_with_requests_fallback(url):
     """
-    New method: Extract times from any text on the page that matches swimmer patterns.
+    Fallback scraping method using requests + BeautifulSoup
+    Use this when Selenium fails
     """
-    data = []
-    
-    # Get all text from the page
-    page_text = soup.get_text()
-    
-    # Look for patterns like "Name Time" or swimmer data
-    # This is a more aggressive approach for when tables fail
-    lines = page_text.split('\n')
-    
-    for i, line in enumerate(lines):
-        line = line.strip()
-        if not line:
-            continue
-            
-        # Look for time patterns (MM:SS.SS or SS.SS)
-        time_matches = re.findall(r'\b\d+:\d{2}\.\d{2}\b|\b\d{1,2}\.\d{2}\b', line)
+    try:
+        print(f"[DEBUG] Attempting requests fallback for: {url}")
         
-        if time_matches:
-            # Look for names in nearby lines
-            for j in range(max(0, i-2), min(len(lines), i+3)):
-                nearby_line = lines[j].strip()
-                
-                # Simple heuristic: if it's not the time line and has reasonable length
-                if j != i and 3 <= len(nearby_line) <= 50 and not re.search(r'\d+:\d{2}\.\d{2}|\d{1,2}\.\d{2}', nearby_line):
-                    # Could be a name
-                    potential_name = nearby_line
-                    
-                    # Basic validation
-                    if not potential_name.isdigit() and ' ' in potential_name:
-                        for time_val in time_matches:
-                            data.append((potential_name, default_event, time_val))
-                            print(f"[DEBUG] Added from page text: {potential_name}, {default_event}, {time_val}")
-                        break
-    
-    return data
-
-def extract_swimcloud_times_table(soup, default_event="Unknown Event"):
-    """
-    Extract times from SwimCloud's specific table structure with robust parsing.
-    """
-    data = []
-    
-    # Find all tables that might contain times
-    tables = soup.find_all("table", class_=re.compile(r'table|times|results|data', re.I)) or soup.find_all("table")
-    
-    for table in tables:
-        print(f"[DEBUG] Analyzing table...")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
         
-        # Get all rows
-        rows = table.find_all("tr")
-        if len(rows) < 2:
-            print("[DEBUG] Table has too few rows, skipping")
-            continue
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
         
-        # Get headers
-        header_row = rows[0]
-        headers = [th.get_text(strip=True).lower() for th in header_row.find_all(["th", "td"])]
-        print(f"[DEBUG] Table headers: {headers}")
+        soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Check if this looks like a SwimCloud times table
-        header_text = ' '.join(headers).lower()
-        if not ('name' in header_text and 'time' in header_text):
-            print("[DEBUG] Table doesn't contain name and time columns, skipping")
-            continue
+        # Extract event name
+        event_name = extract_event_name_from_url(url)
         
-        # Process data rows (skip header row)
-        for i, row in enumerate(rows[1:], 1):
-            cols = row.find_all(["td", "th"])
-            print(f"[DEBUG] Row {i}: Found {len(cols)} columns")
-            
-            if len(cols) < 4:  # SwimCloud tables typically have at least 4-5 columns
-                print(f"[DEBUG] Row {i} has too few columns: {len(cols)}")
+        # Look for swimmer data in tables
+        swimmers_data = []
+        
+        # Find all table rows
+        rows = soup.find_all('tr')
+        
+        for row in rows:
+            row_text = row.get_text(strip=True)
+            if not row_text:
                 continue
+                
+            # Look for time pattern
+            time_pattern = r'(\d{1,2}:\d{2}\.\d{2})'
+            time_match = re.search(time_pattern, row_text)
             
-            try:
-                # For SwimCloud structure: [rank, name, meet, time, flags]
-                # Try different column combinations based on what we see
-                swimmer_name = None
-                time_value = None
+            if time_match:
+                cells = row.find_all(['td', 'th'])
                 
-                # Look through columns to find name and time
-                for col_idx, col in enumerate(cols):
-                    col_text = col.get_text(strip=True)
-                    
-                    # Check if this column contains a swimmer name (has a link to /swimmer/)
-                    swimmer_link = col.find('a', href=re.compile(r'/swimmer/\d+'))
-                    if swimmer_link:
-                        swimmer_name = swimmer_link.get_text(strip=True)
-                        print(f"[DEBUG] Found swimmer name in column {col_idx}: {swimmer_name}")
-                        continue
-                    
-                    # Check if this column contains a time (format like MM:SS.SS)
-                    if re.search(r'\d+:\d{2}\.\d{2}|\d+\.\d{2}', col_text):
-                        # Extract just the time from any links
-                        time_link = col.find('a')
-                        if time_link:
-                            time_value = time_link.get_text(strip=True)
-                        else:
-                            time_value = col_text
-                        
-                        # Clean the time value
-                        time_value = re.sub(r'[^\d:.]', '', time_value)
-                        print(f"[DEBUG] Found time in column {col_idx}: {time_value}")
-                        continue
+                swimmer_data = {
+                    'name': '',
+                    'time': time_match.group(0),
+                    'event': event_name,
+                    'year': '',
+                    'additional_info': row_text
+                }
                 
-                if swimmer_name and time_value:
-                    # Validate swimmer name
-                    if len(swimmer_name) < 3 or swimmer_name.isdigit():
-                        print(f"[DEBUG] Invalid swimmer name: {swimmer_name}")
-                        continue
+                # Extract name from first cell
+                if cells:
+                    swimmer_data['name'] = cells[0].get_text(strip=True)
                     
-                    # Validate time format
-                    if not re.match(r'(\d+:\d{2}\.\d+|\d+\.\d+|\d+:\d{2}:\d{2}\.\d+)', time_value):
-                        print(f"[DEBUG] Invalid time format: {time_value}")
-                        continue
-                    
-                    data.append((swimmer_name, default_event, time_value))
-                    print(f"[DEBUG] Added record: {swimmer_name}, {default_event}, {time_value}")
-                else:
-                    print(f"[DEBUG] Row {i}: Could not find both name and time")
-                    print(f"[DEBUG] Row {i} raw data: {[col.get_text(strip=True) for col in cols]}")
+                    # Look for year in other cells
+                    for cell in cells[1:]:
+                        cell_text = cell.get_text(strip=True)
+                        if re.match(r'^\d{4}$', cell_text) or cell_text in ['FR', 'SO', 'JR', 'SR']:
+                            swimmer_data['year'] = cell_text
+                            break
                 
-            except Exception as e:
-                print(f"[DEBUG] Error processing row {i}: {e}")
-                continue
-    
-    return data
-
-def extract_times_from_any_table(soup, default_event="Unknown Event"):
-    """
-    Extract time data from any table, using default_event if event not in table.
-    """
-    data = []
-    tables = soup.find_all("table")
-    
-    for table in tables:
-        table_text = table.get_text().lower()
+                if swimmer_data['name'] and swimmer_data['name'].lower() not in ['name', 'athlete']:
+                    swimmers_data.append(swimmer_data)
         
-        if not any(indicator in table_text for indicator in ['time', 'swimmer', 'free', 'back', 'breast', 'fly']):
-            print("[DEBUG] Table lacks time/swimmer indicators, skipping")
-            continue
+        print(f"[DEBUG] Requests fallback extracted {len(swimmers_data)} records")
+        return swimmers_data
         
-        rows = table.find_all("tr")
-        if len(rows) < 2:
-            print("[DEBUG] Table has too few rows, skipping")
-            continue
-        
-        header_row = rows[0]
-        headers = [th.get_text(strip=True) for th in header_row.find_all(["th", "td"])]
-        print(f"[DEBUG] Table headers: {headers}")
-        
-        name_col = find_column_index(headers, ['swimmer', 'name', 'athlete'])
-        time_col = find_column_index(headers, ['time', 'result', 'best', 'season', 'personal'])
-        
-        if name_col is not None and time_col is not None:
-            for row in rows[1:]:
-                cols = row.find_all(["td", "th"])
-                if len(cols) > max(name_col, time_col):
-                    try:
-                        raw_name = cols[name_col].get_text(strip=True)
-                        raw_time = cols[time_col].get_text(strip=True)
-                        time_value = re.sub(r'[^\d:.]', '', raw_time)
-                        print(f"[DEBUG] Raw row data - Name: {raw_name}, Time: {raw_time}")
-                        
-                        if not raw_name or raw_name.isdigit() or len(raw_name) < 3:
-                            print(f"[DEBUG] Skipped row - Invalid name: {raw_name}")
-                            continue
-                        
-                        if time_value and re.match(r'\d+:\d+\.?\d*|\d+\.\d+', time_value):
-                            data.append((raw_name, default_event, time_value))
-                            print(f"[DEBUG] Added record: {raw_name}, {default_event}, {time_value}")
-                        else:
-                            print(f"[DEBUG] Skipped row - Invalid time format: {time_value}")
-                    except (IndexError, AttributeError) as e:
-                        print(f"[DEBUG] Error processing row: {e}")
-                        continue
-    
-    return data
+    except Exception as e:
+        print(f"[ERROR] Requests fallback failed: {e}")
+        return []
 
-def extract_times_from_scripts(soup):
+def scrape_swimmer_times_with_fallback(url):
     """
-    Extract data from embedded JavaScript/JSON.
+    Main scraping function that tries Selenium first, then falls back to requests
     """
-    data = []
-    scripts = soup.find_all("script")
-    
-    for script in scripts:
-        if script.string:
-            script_text = script.string
-            json_matches = re.findall(r'\{[^}]*"time"[^}]*\}', script_text, re.IGNORECASE)
-            for match in json_matches:
-                try:
-                    if '"name"' in match.lower() and '"time"' in match.lower():
-                        name_match = re.search(r'"name":\s*"([^"]+)"', match, re.IGNORECASE)
-                        time_match = re.search(r'"time":\s*"([^"]+)"', match, re.IGNORECASE)
-                        if name_match and time_match:
-                            time_value = re.sub(r'[^\d:.]', '', time_match.group(1))
-                            if re.match(r'\d+:\d+\.?\d*|\d+\.\d+', time_value):
-                                data.append((name_match.group(1), "Unknown Event", time_value))
-                                print(f"[DEBUG] Added script record: {name_match.group(1)}, Unknown Event, {time_value}")
-                except Exception as e:
-                    print(f"[DEBUG] Error processing script: {e}")
-                    continue
-    
-    return data
+    try:
+        # Try Selenium first
+        data = scrape_swimmer_times(url)
+        if data:
+            return data
+        else:
+            print("[DEBUG] Selenium returned no data, trying requests fallback...")
+            return scrape_with_requests_fallback(url)
+            
+    except Exception as e:
+        print(f"[ERROR] Selenium scraping failed: {e}")
+        print("[DEBUG] Trying requests fallback...")
+        return scrape_with_requests_fallback(url)
 
-def find_column_index(headers, search_terms):
-    """
-    Find the index of a column based on search terms.
-    """
-    for i, header in enumerate(headers):
-        header_lower = header.lower()
-        if any(term in header_lower for term in search_terms):
-            return i
-    return None
+# For backwards compatibility
+def main():
+    """Test function for development"""
+    test_url = "https://www.swimcloud.com/team/34/times/?dont_group=false&event_course=Y&gender=M&page=1&season_id=28&team_id=34&year=2025&region=&tag_id=&event=1%7C50%7C1"
+    
+    print("Testing swimmer data scraping...")
+    data = scrape_swimmer_times_with_fallback(test_url)
+    
+    print(f"\nResults: {len(data)} swimmers found")
+    for swimmer in data[:5]:  # Show first 5
+        print(f"- {swimmer['name']}: {swimmer['time']} ({swimmer['event']})")
 
-def extract_event_from_row(row):
-    """
-    Extract event information from a row (fallback, rarely used).
-    """
-    row_text = row.get_text().lower()
-    
-    event_patterns = {
-        '50 free': r'50\s*free',
-        '100 free': r'100\s*free',
-        '200 free': r'200\s*free',
-        '500 free': r'500\s*free',
-        '1000 free': r'1000\s*free',
-        '1650 free': r'1650\s*free',  # Updated to match 1650 output
-        '100 back': r'100\s*back',
-        '200 back': r'200\s*back',
-        '100 breast': r'100\s*breast',
-        '200 breast': r'200\s*breast',
-        '100 fly': r'100\s*fly',
-        '200 fly': r'200\s*fly',
-        '200 IM': r'200\s*im',
-        '400 IM': r'400\s*im'
-    }
-    
-    for event_name, pattern in event_patterns.items():
-        if re.search(pattern, row_text):
-            print(f"[DEBUG] Found event in row: {event_name}")
-            return event_name
-    
-    return None
-
-# Test the event code debugging
 if __name__ == "__main__":
-    debug_environment()
-    
-    # Test URL parsing
-    test_url = "https://www.swimcloud.com/team/34/times/?dont_group=false&event_course=Y&gender=M&page=1&season_id=28&team_id=34&year=2025&region=&tag_id=&event=1%7C1650%7C1"
-    debug_url_and_event_extraction(test_url)
+    main()
