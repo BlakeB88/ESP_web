@@ -5,41 +5,49 @@ from utils import time_to_seconds, pivot_to_long_format
 from itertools import product, combinations
 from collections import defaultdict
 
-
 def create_relay_teams(times_df, relay_events, max_total_events=4):
     """
     Build A/B relays for each selected relay_event.
     Returns DataFrame with 'Relay', 'Leg', 'Swimmer', 'Time' columns
     """
     print(f"\n→ Creating relay teams for: {relay_events}")
+    print(f"[DEBUG] Type of relay_events: {type(relay_events)}")
+    print(f"[DEBUG] Length of relay_events: {len(relay_events) if hasattr(relay_events, '__len__') else 'No length'}")
+    print(f"[DEBUG] Available columns in data: {list(times_df.columns)}")
+    print(f"[DEBUG] Relay events to process: {relay_events}")
+    print(f"[DEBUG] Type of relay_events: {type(relay_events)}")
+    
     relay_lineups = []
     swimmer_relay_counts = defaultdict(int)
 
-    for relay_event in relay_events:
-        print(f"→ Processing {relay_event}…")
+    for i, relay_event in enumerate(relay_events):
+        print(f"\n[DEBUG] Processing relay {i+1}/{len(relay_events)}: {relay_event}")
         
-        # Define strokes and names for each relay type
+        # Define strokes and names for each relay type - CORRECTED COLUMN NAMES
         if relay_event == '200 Medley Relay':
-            strokes = ['50 back', '50 breast', '50 fly', '50 free']
+            strokes = ['50 back', '50 breast', '50 fly', '50 free']  # Corrected: use spaces to match data
             names = ['Backstroke', 'Breaststroke', 'Butterfly', 'Freestyle']
         elif relay_event == '400 Medley Relay':
-            strokes = ['100 back', '100 breast', '100 fly', '100 free']
+            strokes = ['100 back', '100 breast', '100 fly', '100 free']  # Corrected: use spaces to match data
             names = ['Backstroke', 'Breaststroke', 'Butterfly', 'Freestyle']
         elif relay_event == '200 Free Relay':
-            strokes = ['50 free'] * 4
+            strokes = ['50 free'] * 4  # Corrected: use space to match data
             names = [f'Leg {i+1}' for i in range(4)]
         elif relay_event == '400 Free Relay':
-            strokes = ['100 free'] * 4
+            strokes = ['100 free'] * 4  # Corrected: use space to match data
             names = [f'Leg {i+1}' for i in range(4)]
         else:
-            print(f"Unknown relay event: {relay_event}")
+            print(f"[ERROR] Unknown relay event: {relay_event}")
             continue
+
+        print(f"[DEBUG] Strokes needed: {strokes}")
+        print(f"[DEBUG] Available columns in times_df: {list(times_df.columns)}")
 
         # Build stroke→[(Swimmer, Time_secs), ...] mapping
         stroke_swimmers = {}
         for stroke, name in zip(strokes, names):
             if stroke not in times_df.columns:
-                print(f"Warning: {stroke} not in data columns")
+                print(f"[ERROR] {stroke} not in data columns")
                 stroke_swimmers[name] = []
                 continue
                 
@@ -49,7 +57,7 @@ def create_relay_teams(times_df, relay_events, max_total_events=4):
             stroke_data = stroke_data[stroke_data[stroke] != '']
             
             if stroke_data.empty:
-                print(f"Warning: No swimmers found for {stroke}")
+                print(f"[WARNING] No swimmers found for {stroke}")
                 stroke_swimmers[name] = []
                 continue
             
@@ -64,23 +72,30 @@ def create_relay_teams(times_df, relay_events, max_total_events=4):
             print(f"  {name}: {len(stroke_swimmers[name])} swimmers available")
 
         # Check if we have enough swimmers for at least one relay
-        min_swimmers = min(len(swimmers) for swimmers in stroke_swimmers.values())
+        min_swimmers = min(len(swimmers) for swimmers in stroke_swimmers.values() if swimmers)
+        print(f"[DEBUG] Minimum swimmers available across all strokes: {min_swimmers}")
+        
         if min_swimmers < 1:
-            print(f"  Cannot form {relay_event} - insufficient swimmers")
+            print(f"[ERROR] Cannot form {relay_event} - insufficient swimmers")
             continue
 
         # For freestyle relays, we need to prevent the same swimmer swimming multiple legs
         if relay_event in ['200 Free Relay', '400 Free Relay']:
+            print(f"[DEBUG] Processing freestyle relay: {relay_event}")
+            
             # Get all swimmers sorted by their freestyle time
             all_free_swimmers = stroke_swimmers['Leg 1']  # All legs have same swimmers for free relays
+            print(f"[DEBUG] Available freestyle swimmers: {len(all_free_swimmers)}")
             
             # Create A and B relays with different swimmers per leg
             relays_to_create = min(2, len(all_free_swimmers) // 4)  # Need 4 different swimmers per relay
+            print(f"[DEBUG] Can create {relays_to_create} freestyle relays")
             
             used_swimmers = set()
             
             for relay_num in range(relays_to_create):
                 relay_name = f"{relay_event} {'A' if relay_num == 0 else 'B'}"
+                print(f"[DEBUG] Creating {relay_name}")
                 
                 # Find 4 fastest available swimmers for this relay
                 relay_swimmers = []
@@ -98,51 +113,73 @@ def create_relay_teams(times_df, relay_events, max_total_events=4):
                             'Swimmer': swimmer,
                             'Time': time_str
                         })
-                        
-                        # Only count relay participation once per relay, not per leg
-                        if i == 0:  # Only increment on first leg
-                            swimmer_relay_counts[swimmer] += 1
+                    
+                    # Count relay participation for each swimmer in the relay
+                    for swimmer, _, _ in relay_swimmers:
+                        swimmer_relay_counts[swimmer] += 1
                     
                     swimmers_list = [swimmer for swimmer, _, _ in relay_swimmers]
-                    print(f"  Created {relay_name}: {', '.join(swimmers_list)}")
+                    print(f"  ✓ Created {relay_name}: {', '.join(swimmers_list)}")
                 else:
-                    print(f"  Cannot create {relay_name} - need 4 different swimmers, only have {len(relay_swimmers)}")
+                    print(f"  ✗ Cannot create {relay_name} - need 4 different swimmers, only have {len(relay_swimmers)}")
         
         else:
-            # For medley relays, use original logic (different strokes)
+            # For medley relays, use improved logic to avoid swimmer overlap between A and B relays
+            print(f"[DEBUG] Processing medley relay: {relay_event}")
             relays_to_create = min(2, min_swimmers)  # A and B relay
+            print(f"[DEBUG] Can create {relays_to_create} medley relays")
+            
+            # Track swimmers used across all relays for this event
+            used_swimmers_this_event = set()
             
             for relay_num in range(relays_to_create):
                 relay_name = f"{relay_event} {'A' if relay_num == 0 else 'B'}"
+                print(f"[DEBUG] Creating {relay_name}")
+                relay_swimmers = []
+                current_relay_legs = []
                 
-                # Add each swimmer as a separate row with their leg/stroke
-                for i, name in enumerate(names):
-                    if len(stroke_swimmers[name]) > relay_num:
-                        swimmer, time_str, time_secs = stroke_swimmers[name][relay_num]
-                        
-                        relay_lineups.append({
+                # For each stroke/leg, find the best available swimmer
+                for i, (stroke, name) in enumerate(zip(strokes, names)):
+                    available_swimmers = stroke_swimmers[name]
+                    print(f"[DEBUG] Looking for {name} swimmer, {len(available_swimmers)} available")
+                    
+                    # Find the fastest swimmer for this stroke who hasn't been used in this event
+                    selected_swimmer = None
+                    for swimmer, time_str, time_secs in available_swimmers:
+                        if swimmer not in used_swimmers_this_event:
+                            selected_swimmer = (swimmer, time_str, time_secs)
+                            break
+                    
+                    if selected_swimmer:
+                        swimmer, time_str, time_secs = selected_swimmer
+                        current_relay_legs.append({
                             'Relay': relay_name,
                             'Leg': name,
                             'Swimmer': swimmer,
                             'Time': time_str
                         })
-                        
-                        # Only count relay participation once per relay, not per leg
-                        if i == 0:  # Only increment on first leg to avoid counting 4 times
-                            swimmer_relay_counts[swimmer] += 1
+                        relay_swimmers.append(swimmer)
+                        used_swimmers_this_event.add(swimmer)
+                        print(f"[DEBUG] Selected {swimmer} for {name}")
                     else:
-                        # Not enough swimmers for this relay
+                        # No available swimmer for this stroke - can't complete this relay
+                        print(f"[ERROR] Cannot complete {relay_name} - no available swimmer for {name}")
                         break
                 
-                # Check if we successfully created a complete relay (4 legs)
-                current_relay_legs = [entry for entry in relay_lineups if entry['Relay'] == relay_name]
+                # Only add the relay if we have all 4 legs
                 if len(current_relay_legs) == 4:
-                    swimmers_list = [entry['Swimmer'] for entry in current_relay_legs]
-                    print(f"  Created {relay_name}: {', '.join(swimmers_list)}")
+                    relay_lineups.extend(current_relay_legs)
+                    # Count relay participation for each swimmer in the relay
+                    for swimmer in relay_swimmers:
+                        swimmer_relay_counts[swimmer] += 1
+                    print(f"  ✓ Created {relay_name}: {', '.join(relay_swimmers)}")
                 else:
-                    # Remove incomplete relay
-                    relay_lineups = [entry for entry in relay_lineups if entry['Relay'] != relay_name]
+                    print(f"  ✗ Cannot create complete {relay_name} - only {len(current_relay_legs)} legs")
 
+    print(f"\n[DEBUG] Total relays created: {len(set(entry['Relay'] for entry in relay_lineups))}")
+    print(f"[DEBUG] Relay entries: {len(relay_lineups)}")
+    print(f"[DEBUG] Swimmer relay counts: {dict(swimmer_relay_counts)}")
+    
     return pd.DataFrame(relay_lineups), dict(swimmer_relay_counts)
 
 

@@ -70,6 +70,7 @@ def get_season_id(year):
     """
     Get SwimCloud season ID for a given year.
     """
+    year = int(year)
     if year in SEASON_MAPPINGS:
         return SEASON_MAPPINGS[year]
     else:
