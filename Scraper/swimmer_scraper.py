@@ -4,6 +4,11 @@ from .team_mappings import load_team_mappings, find_team_id
 from .url_builder import build_swimcloud_times_url, test_times_url, EVENT_MAPPINGS
 from .data_scraper import scrape_swimmer_times
 from .data_processor import create_times_dataframe, save_to_excel
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import os
+
 
 def scrape_and_save(team_name, year=2024, gender="M", filename="swimmer_times.xlsx", 
                    mappings_file="Scraper/maps/team_mappings/all_college_teams.json", 
