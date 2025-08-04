@@ -4,26 +4,22 @@ from .team_mappings import load_team_mappings, find_team_id
 from .url_builder import build_swimcloud_times_url, test_times_url, EVENT_MAPPINGS
 from .data_scraper import scrape_swimmer_times
 from .data_processor import create_times_dataframe, save_to_excel
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-import os
 
 
 def scrape_and_save(team_name, year=2024, gender="M", filename="swimmer_times.xlsx", 
-                   mappings_file="Scraper/maps/team_mappings/all_college_teams.json", 
-                   selected_events=None):
+    mappings_file="Scraper/maps/team_mappings/all_college_teams.json", 
+    selected_events=None):
     """
     Main function to scrape swimmer time data for selected events.
     
     Args:
-        team_name: Name of the team to scrape
-        year: Season year
-        gender: "M" or "F"
-        filename: Output Excel filename
-        mappings_file: Path to team mappings JSON file
-        selected_events: List of event codes to scrape (e.g., ['50_free', '100_free'])
-                        If None, scrapes all events
+    team_name: Name of the team to scrape
+    year: Season year
+    gender: "M" or "F"
+    filename: Output Excel filename
+    mappings_file: Path to team mappings JSON file
+    selected_events: List of event codes to scrape (e.g., ['50_free', '100_free'])
+    If None, scrapes all events
     """
     try:
         # Load team mappings
@@ -51,8 +47,9 @@ def scrape_and_save(team_name, year=2024, gender="M", filename="swimmer_times.xl
             events_to_scrape = [(event_name, event_code) for event_name, event_code in EVENT_MAPPINGS.items() 
                                if event_name in selected_events]
             print(f"→ Scraping {len(events_to_scrape)} selected events: {[name for name, _ in events_to_scrape]}")
-            
-            # Warn about any requested events that aren't in EVENT_MAPPINGS
+        
+        # Warn about any requested events that aren't in EVENT_MAPPINGS
+        if selected_events:
             missing_events = [event for event in selected_events if event not in EVENT_MAPPINGS]
             if missing_events:
                 print(f"⚠️  Warning: These requested events are not available in EVENT_MAPPINGS: {missing_events}")
