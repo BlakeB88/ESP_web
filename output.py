@@ -108,6 +108,18 @@ def print_detailed_lineup(individual_df, relay_df, swimmer_counts=None):
             print(f"{swimmer}: {count} events")
 
 
+def ensure_directory_exists(filepath):
+    """Ensure the directory for the given filepath exists."""
+    directory = os.path.dirname(filepath)
+    if directory and not os.path.exists(directory):
+        try:
+            os.makedirs(directory, exist_ok=True)
+            print(f"Created directory: {directory}")
+        except Exception as e:
+            print(f"Error creating directory {directory}: {e}")
+            raise
+
+
 def export_lineup_to_txt(individual_df, relay_df, team_name="Team", filename=None):
     """Export lineup to a text file for coaches."""
     if filename is None:
@@ -116,6 +128,9 @@ def export_lineup_to_txt(individual_df, relay_df, team_name="Team", filename=Non
         filename = f"{safe_team_name.replace(' ', '_')}_lineup_{timestamp}.txt"
     
     try:
+        # Ensure directory exists
+        ensure_directory_exists(filename)
+        
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(f"=== {team_name.upper()} MEET LINEUP ===\n")
             f.write(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
@@ -174,6 +189,7 @@ def export_lineup_to_txt(individual_df, relay_df, team_name="Team", filename=Non
             
             f.write(f"Total swimmers competing: {len(all_swimmers)}\n")
         
+        print(f"✅ Text file exported successfully: {filename}")
         return filename
         
     except Exception as e:
@@ -189,6 +205,9 @@ def export_lineup_to_excel(individual_df, relay_df, team_name="Team", filename=N
         filename = f"{safe_team_name.replace(' ', '_')}_lineup_{timestamp}.xlsx"
     
     try:
+        # Ensure directory exists
+        ensure_directory_exists(filename)
+        
         with pd.ExcelWriter(filename, engine='openpyxl') as writer:
             # Individual Events Sheet
             if not individual_df.empty and 'Event' in individual_df.columns:
@@ -232,6 +251,7 @@ def export_lineup_to_excel(individual_df, relay_df, team_name="Team", filename=N
                 summary_df = pd.DataFrame(summary_data)
                 summary_df.to_excel(writer, sheet_name='Summary', index=False)
         
+        print(f"✅ Excel file exported successfully: {filename}")
         return filename
         
     except Exception as e:
@@ -251,6 +271,8 @@ def export_lineup_to_csv(individual_df, relay_df, team_name="Team"):
         # Export individual events
         if not individual_df.empty and 'Event' in individual_df.columns:
             individual_filename = f"{base_filename}_individual.csv"
+            ensure_directory_exists(individual_filename)
+            
             export_individual = individual_df.copy()
             export_individual['Time_Sec'] = export_individual['Time'].apply(time_to_seconds)
             export_individual = export_individual.sort_values(['Event', 'Time_Sec'])
@@ -261,6 +283,8 @@ def export_lineup_to_csv(individual_df, relay_df, team_name="Team"):
         # Export relay events
         if not relay_df.empty and 'Relay' in relay_df.columns:
             relay_filename = f"{base_filename}_relay.csv"
+            ensure_directory_exists(relay_filename)
+            
             export_relay = relay_df.copy()
             export_relay = export_relay.sort_values(['Relay', 'Leg'])
             export_relay.to_csv(relay_filename, index=False)
@@ -381,6 +405,10 @@ def export_lineup_to_files(individual_df, relay_df, team_name="Team", output_fol
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_team_name = "".join(c for c in team_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         base_filename = f"{safe_team_name.replace(' ', '_')}_lineup_{timestamp}"
+        
+        # Ensure output folder exists
+        if output_folder:
+            os.makedirs(output_folder, exist_ok=True)
         
         # Export to text file
         txt_filename = f"{base_filename}.txt"

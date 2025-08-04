@@ -295,6 +295,63 @@
         border-radius: 15px;
         margin-bottom: 30px;
     }
+    .download-button {
+        display: inline-block;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin: 5px;
+    }
+    .download-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+    }
+    .result-card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+    }
+    .score-display {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+    .score-team {
+        text-align: center;
+    }
+    .score-team h4 {
+        font-size: 1.2em;
+        margin-bottom: 5px;
+    }
+    .score-team .score {
+        font-size: 2em;
+        font-weight: bold;
+    }
+    .result-indicator {
+        text-align: center;
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+    .result-win {
+        color: #10b981;
+    }
+    .result-lose {
+        color: #ef4444;
+    }
+    .result-tie {
+        color: #f59e0b;
+    }
     @media (max-width: 768px) {
         .mode-tabs {
             flex-direction: column;
@@ -307,6 +364,10 @@
         }
         .action-buttons {
             flex-direction: column;
+        }
+        .score-display {
+            flex-direction: column;
+            gap: 15px;
         }
     }
     </style>
@@ -570,14 +631,10 @@
                         dualFields.classList.add('active');
                         strategySection.style.display = 'none';
                         teamInfoTitle.textContent = '📋 Meet Configuration';
-                        // Hide individual year/gender fields in dual mode
-                        document.getElementById('yearGroup').style.display = 'none';
-                        document.getElementById('genderGroup').style.display = 'none';
                     } else {
                         dualFields.classList.remove('active');
                         strategySection.style.display = 'block';
                         teamInfoTitle.textContent = '📋 Team Information';
-                        // Show individual year/gender fields in single mode
                         document.getElementById('yearGroup').style.display = 'block';
                         document.getElementById('genderGroup').style.display = 'block';
                     }
@@ -676,41 +733,203 @@
             if (!appState.isValid) return;
 
             const generateBtn = document.getElementById('generateLineupBtn');
-            const btnText = document.getElementById('generateBtnText');
-            const spinner = document.getElementById('loadingSpinner');
+            const btnText     = document.getElementById('generateBtnText');
+            const spinner     = document.getElementById('loadingSpinner');
             const statusIndicator = document.getElementById('statusIndicator');
-            const resultsSection = document.getElementById('resultsSection');
+            const resultsSection  = document.getElementById('resultsSection');
 
-            // Show loading state
+            // show loading
             generateBtn.disabled = true;
-            btnText.textContent = 'Generating...';
+            btnText.textContent  = 'Generating…';
             spinner.style.display = 'block';
             statusIndicator.className = 'status-indicator status-processing';
-            statusIndicator.innerHTML = '<span>🔄 Processing lineup optimization...</span>';
+            statusIndicator.innerHTML = '<span>🔄 Optimizing…</span>';
 
             try {
-                // Simulate API call delay
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Build the payload matching app.py's expectations
+                const payload = {
+                mode:         appState.mode,
+                poolConfig:   appState.poolConfig,
+                teamName:     appState.teamInfo.teamName,
+                year:         appState.teamInfo.year,
+                gender:       appState.teamInfo.gender,
+                opponentName: appState.teamInfo.opponentName || '',
+                events: {
+                    distanceEvents: [ parseInt(appState.eventSelections.distance) ],
+                    imEvents:       [ parseInt(appState.eventSelections.im) ],
+                    relayEvents:    [ parseInt(appState.eventSelections.relay) ]
+                }
+                };
 
-                // Display configuration summary
-                displayConfigurationSummary();
-                resultsSection.classList.add('active');
-                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                const resp = await fetch('/api/generate-lineup', {
+                method:  'POST',
+                headers: { 'Content-Type':'application/json' },
+                body:    JSON.stringify(payload)
+                });
 
-                // Update status to success
+                const result = await resp.json();
+                if (!resp.ok) {
+                throw new Error(result.error || 'Server error');
+                }
+
+                // Display results with download links
+                displayResults(result);
+
                 statusIndicator.className = 'status-indicator status-ready';
-                statusIndicator.innerHTML = '<span>✅ Configuration Summary Generated</span>';
+                statusIndicator.innerHTML = '<span>✅ Lineup generated successfully!</span>';
+                resultsSection.classList.add('active');
+                resultsSection.scrollIntoView({ behavior:'smooth' });
 
-            } catch (error) {
-                console.error('Error generating lineup:', error);
+            } catch (err) {
+                console.error(err);
                 statusIndicator.className = 'status-indicator status-error';
-                statusIndicator.innerHTML = '<span>❌ Error generating lineup</span>';
+                statusIndicator.innerHTML = `<span>❌ ${err.message}</span>`;
+                displayError(err.message);
             } finally {
-                // Reset button state
                 generateBtn.disabled = false;
-                btnText.textContent = 'Generate Lineup';
+                btnText.textContent  = 'Generate Lineup';
                 spinner.style.display = 'none';
             }
+        }
+
+        function displayResults(result) {
+            const resultsContent = document.getElementById('resultsContent');
+            const resultsSection = document.getElementById('resultsSection');
+            
+            // Clear any error state
+            resultsSection.classList.remove('error');
+            
+            let html = '';
+            
+            if (result.mode === 'single') {
+                // Single team results
+                html = `
+                    <div class="result-card">
+                        <h4 style="color: #1e293b; margin-bottom: 20px; text-align: center; font-size: 1.4em;">
+                            🏆 ${result.team_name} Lineup Generated
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                            <div style="text-align: center; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                                <div style="font-size: 2em; font-weight: bold; color: #4facfe;">${result.summary.total_swimmers}</div>
+                                <div style="color: #64748b;">Total Swimmers</div>
+                            </div>
+                            <div style="text-align: center; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                                <div style="font-size: 2em; font-weight: bold; color: #10b981;">${result.summary.events_assigned}</div>
+                                <div style="color: #64748b;">Individual Events</div>
+                            </div>
+                            <div style="text-align: center; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                                <div style="font-size: 2em; font-weight: bold; color: #f59e0b;">${result.summary.relays_created}</div>
+                                <div style="color: #64748b;">Relay Teams</div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; padding: 20px; background: #f0fdf4; border-radius: 10px; border: 2px solid #bbf7d0;">
+                            <h5 style="color: #166534; margin-bottom: 15px;">📄 Download Lineup Files</h5>
+                            <div>
+                `;
+                
+                if (result.output_files && result.output_files.length > 0) {
+                    result.output_files.forEach(filename => {
+                        const fileType = filename.includes('.txt') ? 'Text File' : 'Excel File';
+                        const icon = filename.includes('.txt') ? '📄' : '📊';
+                        html += `<a href="/api/download/${filename}" class="download-button">${icon} ${fileType}</a>`;
+                    });
+                } else {
+                    html += '<p style="color: #64748b;">No files available for download</p>';
+                }
+                
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } else if (result.mode === 'dual') {
+                // Dual team results
+                const resultClass = result.result === 'WIN' ? 'result-win' : result.result === 'LOSE' ? 'result-lose' : 'result-tie';
+                const resultIcon = result.result === 'WIN' ? '🏆' : result.result === 'LOSE' ? '😔' : '🤝';
+                
+                html = `
+                    <div class="result-card">
+                        <h4 style="color: #1e293b; margin-bottom: 20px; text-align: center; font-size: 1.4em;">
+                            ⚔️ Strategic Dual Meet Results
+                        </h4>
+                        
+                        <div class="score-display">
+                            <div class="score-team">
+                                <h4>${result.team_name}</h4>
+                                <div class="score">${result.user_score}</div>
+                            </div>
+                            <div class="result-indicator ${resultClass}">
+                                ${resultIcon}<br>
+                                ${result.result === 'TIE' ? 'TIE' : result.result + ' by ' + result.margin}
+                            </div>
+                            <div class="score-team">
+                                <h4>${result.opponent_name}</h4>
+                                <div class="score">${result.opponent_score}</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                            <div style="text-align: center; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                                <div style="font-size: 1.5em; font-weight: bold; color: #4facfe;">${result.summary.user_swimmers}</div>
+                                <div style="color: #64748b;">${result.team_name} Swimmers</div>
+                            </div>
+                            <div style="text-align: center; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                                <div style="font-size: 1.5em; font-weight: bold; color: #6b7280;">${result.summary.opponent_swimmers}</div>
+                                <div style="color: #64748b;">${result.opponent_name} Swimmers</div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; padding: 20px; background: #f0fdf4; border-radius: 10px; border: 2px solid #bbf7d0;">
+                            <h5 style="color: #166534; margin-bottom: 15px;">📄 Download ${result.team_name} Lineup</h5>
+                            <div>
+                `;
+                
+                if (result.output_files && result.output_files.length > 0) {
+                    result.output_files.forEach(filename => {
+                        const fileType = filename.includes('.txt') ? 'Text File' : 'Excel File';
+                        const icon = filename.includes('.txt') ? '📄' : '📊';
+                        html += `<a href="/api/download/${filename}" class="download-button">${icon} ${fileType}</a>`;
+                    });
+                } else {
+                    html += '<p style="color: #64748b;">No files available for download</p>';
+                }
+                
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultsContent.innerHTML = html;
+        }
+
+        function displayError(errorMessage) {
+            const resultsContent = document.getElementById('resultsContent');
+            const resultsSection = document.getElementById('resultsSection');
+            
+            resultsSection.classList.add('active', 'error');
+            
+            resultsContent.innerHTML = `
+                <div class="result-card">
+                    <h4 style="color: #dc2626; margin-bottom: 20px; text-align: center; font-size: 1.4em;">
+                        ❌ Error Generating Lineup
+                    </h4>
+                    <div style="padding: 20px; background: #fef2f2; border-radius: 10px; border: 2px solid #fecaca;">
+                        <p style="color: #dc2626; text-align: center; font-size: 1.1em; margin: 0;">
+                            ${errorMessage}
+                        </p>
+                        <p style="color: #991b1b; text-align: center; font-size: 0.9em; margin-top: 10px;">
+                            Please check your configuration and try again.
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
         }
 
         function displayConfigurationSummary() {

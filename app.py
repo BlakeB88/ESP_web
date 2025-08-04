@@ -32,6 +32,151 @@ app.config['UPLOAD_FOLDER'] = 'generated_lineups'
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# FIXED: Updated RELAY_EVENT_MAPPING to match HTML values exactly
+RELAY_EVENT_MAPPING = {
+    # HTML radio button values (matching your UI exactly)
+    1: ["200 Medley Relay", "200 Free Relay"],        # "200 Medley & 200 Free"
+    2: ["200 Medley Relay", "400 Free Relay"],        # "200 Medley & 400 Free"
+    3: ["400 Medley Relay", "200 Free Relay"],        # "400 Medley & 200 Free"
+    4: ["400 Medley Relay", "400 Free Relay"],        # "400 Medley & 400 Free"
+    5: ["200 Medley Relay", "400 Medley Relay", "200 Free Relay", "400 Free Relay"],  # "All four relays"
+    6: ["200 Medley Relay", "400 Medley Relay"],      # "Medley relays only (200 & 400)"
+    7: ["200 Free Relay", "400 Free Relay"],          # "Free relays only (200 & 400)"
+    
+    # String versions for backward compatibility
+    "1": ["200 Medley Relay", "200 Free Relay"],
+    "2": ["200 Medley Relay", "400 Free Relay"],
+    "3": ["400 Medley Relay", "200 Free Relay"],
+    "4": ["400 Medley Relay", "400 Free Relay"],
+    "5": ["200 Medley Relay", "400 Medley Relay", "200 Free Relay", "400 Free Relay"],
+    "6": ["200 Medley Relay", "400 Medley Relay"],
+    "7": ["200 Free Relay", "400 Free Relay"],
+    
+    # Direct event names (for backward compatibility)
+    "200 Medley Relay": ["200 Medley Relay"],
+    "400 Medley Relay": ["400 Medley Relay"], 
+    "200 Free Relay": ["200 Free Relay"],
+    "400 Free Relay": ["400 Free Relay"],
+    
+    # Frontend radio button text values (for extra safety)
+    "200 Medley & 200 Free": ["200 Medley Relay", "200 Free Relay"],
+    "200 Medley & 400 Free": ["200 Medley Relay", "400 Free Relay"],
+    "400 Medley & 200 Free": ["400 Medley Relay", "200 Free Relay"],
+    "400 Medley & 400 Free": ["400 Medley Relay", "400 Free Relay"],
+    "All four relays": ["200 Medley Relay", "400 Medley Relay", "200 Free Relay", "400 Free Relay"],
+    "Medley relays only (200 & 400)": ["200 Medley Relay", "400 Medley Relay"],
+    "Free relays only (200 & 400)": ["200 Free Relay", "400 Free Relay"]
+}
+
+def convert_relay_events(relay_event_data):
+    """Convert relay event selection to event names - IMPROVED VERSION"""
+    print(f"[DEBUG] convert_relay_events input: {relay_event_data} (type: {type(relay_event_data)})")
+    
+    converted_events = []
+    
+    # Handle different input formats
+    if isinstance(relay_event_data, list):
+        # If it's a list, process each item
+        for event in relay_event_data:
+            print(f"[DEBUG] Processing list item: {event} (type: {type(event)})")
+            
+            # Convert to string or int for lookup
+            lookup_key = event
+            if isinstance(event, str) and event.isdigit():
+                lookup_key = int(event)
+            
+            if lookup_key in RELAY_EVENT_MAPPING:
+                result = RELAY_EVENT_MAPPING[lookup_key]
+                print(f"[DEBUG] Found mapping: {lookup_key} -> {result}")
+                if isinstance(result, list):
+                    converted_events.extend(result)
+                else:
+                    converted_events.append(result)
+            else:
+                # Try as direct event name
+                if isinstance(event, str) and any(event in relay_name for relay_name in ["200 Medley Relay", "400 Medley Relay", "200 Free Relay", "400 Free Relay"]):
+                    converted_events.append(event)
+                    print(f"[DEBUG] Added direct event name: {event}")
+                else:
+                    print(f"[WARNING] Unknown relay event in list: {event}")
+    
+    elif isinstance(relay_event_data, (str, int)):
+        # Single selection
+        print(f"[DEBUG] Processing single selection: {relay_event_data}")
+        
+        # Convert to appropriate type for lookup
+        lookup_key = relay_event_data
+        if isinstance(relay_event_data, str) and relay_event_data.isdigit():
+            lookup_key = int(relay_event_data)
+        
+        if lookup_key in RELAY_EVENT_MAPPING:
+            result = RELAY_EVENT_MAPPING[lookup_key]
+            print(f"[DEBUG] Found mapping: {lookup_key} -> {result}")
+            if isinstance(result, list):
+                converted_events.extend(result)
+            else:
+                converted_events.append(result)
+        else:
+            # Try as direct event name
+            if isinstance(relay_event_data, str) and any(relay_event_data in relay_name for relay_name in ["200 Medley Relay", "400 Medley Relay", "200 Free Relay", "400 Free Relay"]):
+                converted_events.append(relay_event_data)
+                print(f"[DEBUG] Added direct event name: {relay_event_data}")
+            else:
+                print(f"[WARNING] Unknown relay event: {relay_event_data}")
+    
+    else:
+        print(f"[ERROR] Unexpected relay_event_data type: {type(relay_event_data)}")
+    
+    # Remove duplicates while preserving order
+    unique_events = []
+    for event in converted_events:
+        if event not in unique_events:
+            unique_events.append(event)
+    
+    print(f"[DEBUG] Final converted relay events: {unique_events}")
+    return unique_events
+
+# Add event mapping functions
+def convert_distance_events(distance_event_list):
+    """Convert distance event IDs to event names"""
+    DISTANCE_MAPPING = {
+        1: ["1650 Free"],
+        2: ["1000 Free"],
+        3: ["1650 Free", "1000 Free"],
+        4: []  # Neither
+    }
+    converted_events = []
+    for event in distance_event_list:
+        if isinstance(event, int) and event in DISTANCE_MAPPING:
+            converted_events.extend(DISTANCE_MAPPING[event])
+        elif isinstance(event, str) and event.isdigit():
+            int_event = int(event)
+            if int_event in DISTANCE_MAPPING:
+                converted_events.extend(DISTANCE_MAPPING[int_event])
+        elif isinstance(event, str):
+            converted_events.append(event)
+    return converted_events
+
+def convert_im_events(im_event_list):
+    """Convert IM event IDs to event names"""
+    IM_MAPPING = {
+        1: ["200 IM"],
+        2: ["400 IM"],
+        3: ["200 IM", "400 IM"],
+        4: []  # Neither
+    }
+    converted_events = []
+    for event in im_event_list:
+        if isinstance(event, int) and event in IM_MAPPING:
+            converted_events.extend(IM_MAPPING[event])
+        elif isinstance(event, str) and event.isdigit():
+            int_event = int(event)
+            if int_event in IM_MAPPING:
+                converted_events.extend(IM_MAPPING[int_event])
+        elif isinstance(event, str):
+            converted_events.append(event)
+    return converted_events
+
 @app.route('/')
 def index():
     """Serve the main web interface"""
@@ -59,10 +204,23 @@ def generate_lineup():
         if mode == 'dual' and not opponent_name:
             return jsonify({'error': 'Opponent name required for dual meet mode'}), 400
         
-        # Process events
-        distance_events = events.get('distanceEvents', [])
-        im_events = events.get('imEvents', [])
-        relay_events = events.get('relayEvents', [])
+        # Process events - convert IDs to names BEFORE cleaning
+        distance_events_raw = events.get('distanceEvents', [])
+        im_events_raw = events.get('imEvents', [])
+        relay_events_raw = events.get('relayEvents', [])
+        
+        # Convert event IDs to names BEFORE cleaning
+        distance_events = convert_distance_events(distance_events_raw)
+        im_events = convert_im_events(im_events_raw)
+        relay_events = convert_relay_events(relay_events_raw)
+        
+        # Log what we received for debugging
+        print(f"Debug - Raw distance events: {distance_events_raw}")
+        print(f"Debug - Raw IM events: {im_events_raw}")
+        print(f"Debug - Raw relay events: {relay_events_raw}")
+        print(f"Debug - Converted distance events: {distance_events}")
+        print(f"Debug - Converted IM events: {im_events}")
+        print(f"Debug - Converted relay events: {relay_events}")
         
         if not (distance_events or im_events or relay_events):
             return jsonify({'error': 'At least one event must be selected'}), 400
@@ -86,6 +244,7 @@ def generate_lineup():
         return jsonify(result)
         
     except Exception as e:
+        print(f"Error in generate_lineup: {str(e)}")  # Debug logging
         return jsonify({'error': f'Error processing lineup: {str(e)}'}), 500
 
 def process_single_team_lineup(team_name, year, gender, distance_events, 
@@ -94,6 +253,8 @@ def process_single_team_lineup(team_name, year, gender, distance_events,
     
     # Get events to scrape
     events_to_scrape = get_scraper_event_codes(distance_events, im_events)
+    
+    print(f"Debug - Processing single team with relay events: {relay_events}")
     
     # Scrape data
     scrape_and_save(
@@ -153,9 +314,23 @@ def process_dual_team_lineup(team_name, opponent_name, year, gender,
     
     events_to_scrape = get_scraper_event_codes(distance_events, im_events)
     
-    # Scrape both teams
-    scrape_and_save(team_name, year, gender, user_filename, events_to_scrape)
-    scrape_and_save(opponent_name, year, gender, opp_filename, events_to_scrape)
+    print(f"Debug - Processing dual team with relay events: {relay_events}")
+    
+    # Scrape both teams - FIXED: Pass selected_events parameter correctly
+    scrape_and_save(
+        team_name=team_name,
+        year=year,
+        gender=gender,
+        filename=user_filename,
+        selected_events=events_to_scrape
+    )
+    scrape_and_save(
+        team_name=opponent_name,
+        year=year,
+        gender=gender,
+        filename=opp_filename,
+        selected_events=events_to_scrape
+    )
     
     # Load and process data
     user_df = clean_time_data(pd.read_excel(user_filename))
