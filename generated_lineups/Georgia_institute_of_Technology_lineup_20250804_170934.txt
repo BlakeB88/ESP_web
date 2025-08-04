@@ -1,0 +1,251 @@
+=== GEORGIA INSTITUTE OF TECHNOLOGY MEET LINEUP ===
+Generated on: 2025-08-04 17:09:34
+
+=== INDIVIDUAL EVENTS ===
+
+100 back:
+  1. Berke Saka – 45.74
+  2. Cade Martin – 47.75
+  3. Alex McCormick – 47.91
+  4. Jack Dunbar – 48.66
+  5. Nils Bognar – 48.78
+
+100 breast:
+  1. Uros Zivanovic – 51.53
+  2. Julian Killius – 53.08
+  3. Breno Santana – 53.76
+  4. Branden Beladi – 54.56
+  5. Mert Kilavuz – 1:11.77
+
+100 fly:
+  1. Brodie Johnson – 47.19
+  2. Blake Burnley – 47.63
+  3. Ramy El Ghaziri – 48.21
+  4. Jack Mezzogori – 50.32
+  5. Henry Gibbs – 52.07
+
+100 free:
+  1. Ricky Balduccini – 43.34
+  2. David Gapinski – 43.62
+  3. Vitor Sega – 43.89
+  4. Christopher Richardson – 44.14
+  5. Joao Caballero – 44.21
+
+1000 free:
+  1. Mert Kilavuz – 8:53.81
+  2. Lukas Vetkoetter – 9:02.83
+  3. Ben Gerhard – 9:15.04
+  4. Charles Perks – 9:16.21
+  5. Sean Santos – 9:25.51
+
+1650 free:
+  1. Mert Kilavuz – 14:44.90
+  2. Lukas Vetkoetter – 14:58.05
+  3. Charles Perks – 15:18.11
+  4. Ben Gerhard – 15:18.14
+  5. Sean Santos – 15:41.38
+
+200 IM:
+  1. Berke Saka – 1:41.70
+  2. Nils Bognar – 1:45.54
+  3. Antonio Romero – 1:46.17
+  4. Jack Mezzogori – 1:46.87
+  5. Alex McCormick – 1:47.83
+
+200 back:
+  1. Alex McCormick – 1:42.34
+  2. Christian Smith – 1:46.39
+  3. Jack Mezzogori – 1:46.50
+  4. Cade Martin – 1:47.47
+  5. Charles Perks – 1:57.90
+
+200 breast:
+  1. Julian Killius – 1:56.81
+  2. Breno Santana – 1:57.81
+  3. Branden Beladi – 1:58.22
+  4. Sean Santos – 1:59.48
+  5. Nils Bognar – 2:00.31
+
+200 fly:
+  1. Blake Burnley – 1:46.20
+  2. Brodie Johnson – 1:46.96
+  3. Henry Gibbs – 1:47.07
+
+200 free:
+  1. Ben Gerhard – 1:37.36
+  2. Blake Burnley – 1:41.25
+  3. Julian Killius – 1:46.58
+
+400 IM:
+  1. Nils Bognar – 3:48.57
+  2. Lukas Vetkoetter – 3:49.14
+  3. Henry Gibbs – 3:50.96
+  4. Jack Mezzogori – 3:51.26
+  5. Antonio Romero – 3:58.38
+
+50 free:
+  1. Cade Martin – 20.5
+  2. Uros Zivanovic – 20.7
+  3. Blake Burnley – 20.76
+  4. Vitor Sega – 20.79
+  5. Jack Dunbar – 20.89
+
+500 free:
+  1. Mert Kilavuz – 4:18.75
+  2. Vitor Sega – 4:21.28
+  3. Ben Gerhard – 4:21.83
+  4. Lukas Vetkoetter – 4:22.41
+  5. Charles Perks – 4:22.77
+
+=== RELAY EVENTS ===
+
+200 Free Relay A:
+  Leg 1: Leandro Odorici – 19.26
+  Leg 2: Robin Yeboah – 19.63
+  Leg 3: David Gapinski – 19.84
+  Leg 4: Ricky Balduccini – 20.04
+
+200 Free Relay B:
+  Leg 1: Christopher Richardson – 20.05
+  Leg 2: Stephen Jones – 20.23
+  Leg 3: Joao Caballero – 20.36
+  Leg 4: Cade Martin – 20.5
+
+200 Medley Relay A:
+  Backstroke: Berke Saka – 21.04
+  Breaststroke: Leandro Odorici – 23.76
+  Butterfly: Antonio Romero – 21.11
+  Freestyle: Robin Yeboah – 19.63
+
+200 Medley Relay B:
+  Backstroke: Christopher Richardson – 21.93
+  Breaststroke: Uros Zivanovic – 23.8
+  Butterfly: Stephen Jones – 21.18
+  Freestyle: David Gapinski – 19.84
+
+400 Free Relay A:
+  Leg 1: Leandro Odorici – 42.34
+  Leg 2: Ricky Balduccini – 43.34
+  Leg 3: Robin Yeboah – 43.5
+  Leg 4: David Gapinski – 43.62
+
+400 Free Relay B:
+  Leg 1: Vitor Sega – 43.89
+  Leg 2: Christopher Richardson – 44.14
+  Leg 3: Joao Caballero – 44.21
+  Leg 4: Stephen Jones – 44.54
+
+400 Medley Relay A:
+  Backstroke: Berke Saka – 45.74
+  Breaststroke: Uros Zivanovic – 51.53
+  Butterfly: Antonio Romero – 45.78
+  Freestyle: Leandro Odorici – 42.34
+
+400 Medley Relay B:
+  Backstroke: Ricky Balduccini – 46.67
+  Breaststroke: Joao Caballero – 52.34
+  Butterfly: Stephen Jones – 45.9
+  Freestyle: Robin Yeboah – 43.5
+
+=== SWIMMER EVENT ASSIGNMENTS ===
+
+Antonio Romero (4 events total):
+  Individual: 200 IM, 400 IM
+  Relays: 200 Medley Relay A (Butterfly), 400 Medley Relay A (Butterfly)
+
+Ben Gerhard (4 events total):
+  Individual: 1000 free, 500 free, 1650 free, 200 free
+
+Berke Saka (4 events total):
+  Individual: 200 IM, 100 back
+  Relays: 200 Medley Relay A (Backstroke), 400 Medley Relay A (Backstroke)
+
+Blake Burnley (4 events total):
+  Individual: 50 free, 200 fly, 200 free, 100 fly
+
+Cade Martin (4 events total):
+  Individual: 100 back, 50 free, 200 back
+  Relays: 200 Free Relay B (Leg 4)
+
+Charles Perks (4 events total):
+  Individual: 1000 free, 500 free, 1650 free, 200 back
+
+Christopher Richardson (4 events total):
+  Individual: 100 free
+  Relays: 200 Medley Relay B (Backstroke), 200 Free Relay B (Leg 1), 400 Free Relay B (Leg 2)
+
+David Gapinski (4 events total):
+  Individual: 100 free
+  Relays: 200 Medley Relay B (Freestyle), 200 Free Relay A (Leg 3), 400 Free Relay A (Leg 4)
+
+Jack Mezzogori (4 events total):
+  Individual: 200 IM, 400 IM, 200 back, 100 fly
+
+Joao Caballero (4 events total):
+  Individual: 100 free
+  Relays: 400 Medley Relay B (Breaststroke), 200 Free Relay B (Leg 3), 400 Free Relay B (Leg 3)
+
+Leandro Odorici (4 events total):
+  Relays: 200 Medley Relay A (Breaststroke), 400 Medley Relay A (Freestyle), 200 Free Relay A (Leg 1), 400 Free Relay A (Leg 1)
+
+Lukas Vetkoetter (4 events total):
+  Individual: 400 IM, 1000 free, 500 free, 1650 free
+
+Mert Kilavuz (4 events total):
+  Individual: 1000 free, 100 breast, 500 free, 1650 free
+
+Nils Bognar (4 events total):
+  Individual: 200 IM, 400 IM, 100 back, 200 breast
+
+Ricky Balduccini (4 events total):
+  Individual: 100 free
+  Relays: 400 Medley Relay B (Backstroke), 200 Free Relay A (Leg 4), 400 Free Relay A (Leg 2)
+
+Robin Yeboah (4 events total):
+  Relays: 200 Medley Relay A (Freestyle), 400 Medley Relay B (Freestyle), 200 Free Relay A (Leg 2), 400 Free Relay A (Leg 3)
+
+Stephen Jones (4 events total):
+  Relays: 200 Medley Relay B (Butterfly), 400 Medley Relay B (Butterfly), 200 Free Relay B (Leg 2), 400 Free Relay B (Leg 4)
+
+Uros Zivanovic (4 events total):
+  Individual: 50 free, 100 breast
+  Relays: 200 Medley Relay B (Breaststroke), 400 Medley Relay A (Breaststroke)
+
+Vitor Sega (4 events total):
+  Individual: 100 free, 50 free, 500 free
+  Relays: 400 Free Relay B (Leg 1)
+
+Alex McCormick (3 events total):
+  Individual: 200 IM, 100 back, 200 back
+
+Henry Gibbs (3 events total):
+  Individual: 400 IM, 200 fly, 100 fly
+
+Julian Killius (3 events total):
+  Individual: 100 breast, 200 breast, 200 free
+
+Sean Santos (3 events total):
+  Individual: 1000 free, 200 breast, 1650 free
+
+Branden Beladi (2 events total):
+  Individual: 100 breast, 200 breast
+
+Breno Santana (2 events total):
+  Individual: 100 breast, 200 breast
+
+Brodie Johnson (2 events total):
+  Individual: 200 fly, 100 fly
+
+Jack Dunbar (2 events total):
+  Individual: 100 back, 50 free
+
+Christian Smith (1 events total):
+  Individual: 200 back
+
+Ramy El Ghaziri (1 events total):
+  Individual: 100 fly
+
+=== LINEUP SUMMARY ===
+Individual Events: 14 events, 26 swimmers
+Relay Events: 8 relays, 12 swimmers
+Total swimmers competing: 29

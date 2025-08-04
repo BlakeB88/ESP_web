@@ -9,22 +9,21 @@ import urllib.parse
 
 # Updated Map SwimCloud event codes to event names - FIXED 1500 to 1650 mapping
 EVENT_CODE_TO_NAME = {
-    "1|50|1": "50 free",
-    "1|100|1": "100 free",
-    "1|200|1": "200 free",
-    "1|500|1": "500 free",
-    "1|1000|1": "1000 free",
-    "1|1500|1": "1650 free",  # FIXED: Maps 1500 code to 1650 name (consistent with url_builder.py)
-    "1|1650|1": "1650 free", 
-    "2|50|1": "50 back",
-    "2|100|1": "100 back",
-    "2|200|1": "200 back",
-    "3|50|1": "50 breast",
-    "3|100|1": "100 breast",
-    "3|200|1": "200 breast",
-    "4|50|1": "50 fly",
-    "4|100|1": "100 fly",
-    "4|200|1": "200 fly",
+    "1|50|1": "50 Free",      # Changed from "50 free"
+    "1|100|1": "100 Free",    # Changed from "100 free"
+    "1|200|1": "200 Free",    # Changed from "200 free"
+    "1|500|1": "500 Free",    # Changed from "500 free"
+    "1|1000|1": "1000 Free",  # Changed from "1000 free"
+    "1|1500|1": "1650 Free",  # Changed from "1650 free"
+    "2|50|1": "50 Back",      # Changed from "50 back"
+    "2|100|1": "100 Back",    # Changed from "100 back"
+    "2|200|1": "200 Back",    # Changed from "200 back"
+    "3|50|1": "50 Breast",    # Changed from "50 breast"
+    "3|100|1": "100 Breast",  # Changed from "100 breast"
+    "3|200|1": "200 Breast",  # Changed from "200 breast"
+    "4|50|1": "50 Fly",       # Changed from "50 fly"
+    "4|100|1": "100 Fly",     # Changed from "100 fly"
+    "4|200|1": "200 Fly",     # Changed from "200 fly"
     "5|200|1": "200 IM",
     "5|400|1": "400 IM"
 }
