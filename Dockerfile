@@ -1,13 +1,31 @@
 # Dockerfile specifically for Render deployment
 FROM python:3.11-slim
 
-# Install system dependencies including Chrome
-RUN apt-get update && apt-get install -y \
+# Update package lists
+RUN apt-get update
+
+# Install basic dependencies first
+RUN apt-get install -y \
     wget \
     gnupg \
     unzip \
     curl \
     ca-certificates \
+    apt-transport-https \
+    software-properties-common
+
+# Add Google Chrome repository and key
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+
+# Update package lists again after adding Chrome repository
+RUN apt-get update
+
+# Install Chrome and its dependencies
+RUN apt-get install -y google-chrome-stable
+
+# Install additional Chrome dependencies that might be missing
+RUN apt-get install -y \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -42,19 +60,18 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libxtst6 \
     lsb-release \
-    xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
+    xdg-utils
 
-# Install Chrome
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
+# Clean up apt cache to reduce image size
+RUN rm -rf /var/lib/apt/lists/*
 
 # Set Chrome environment variables
 ENV GOOGLE_CHROME_BIN=/usr/bin/google-chrome-stable
 ENV CHROME_BIN=/usr/bin/google-chrome-stable
+
+# Verify Chrome installation
+RUN google-chrome-stable --version || echo "Chrome version check failed"
+RUN ls -la /usr/bin/google-chrome* || echo "Chrome binaries not found"
 
 # Create app directory
 WORKDIR /app
@@ -69,6 +86,9 @@ COPY . .
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
+
+# Verify Chrome is accessible as non-root user
+RUN google-chrome-stable --version || echo "Chrome not accessible as appuser"
 
 # Expose port
 EXPOSE 8000
