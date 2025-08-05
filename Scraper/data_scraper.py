@@ -1,4 +1,6 @@
 import re
+import os
+import shutil
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -27,6 +29,79 @@ EVENT_CODE_TO_NAME = {
     "5|200|1": "200 IM",
     "5|400|1": "400 IM"
 }
+
+def get_chrome_driver():
+    """
+    Initialize Chrome WebDriver with proper configuration for Render deployment
+    """
+    chrome_options = Options()
+    
+    # Essential headless options
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-plugins")
+    chrome_options.add_argument("--disable-images")
+    chrome_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    
+    # Try to find Chrome binary in various locations
+    chrome_binary_locations = [
+        os.environ.get('GOOGLE_CHROME_BIN'),
+        '/app/.apt/usr/bin/google-chrome',
+        '/app/.apt/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        shutil.which('google-chrome'),
+        shutil.which('google-chrome-stable'),
+        shutil.which('chromium'),
+        shutil.which('chromium-browser')
+    ]
+    
+    chrome_binary = None
+    for location in chrome_binary_locations:
+        if location and os.path.isfile(location):
+            chrome_binary = location
+            print(f"[DEBUG] Found Chrome binary at: {location}")
+            break
+    
+    if chrome_binary:
+        chrome_options.binary_location = chrome_binary
+    else:
+        print("[DEBUG] Warning: Chrome binary not found, using default")
+        print("[DEBUG] Available binaries:")
+        for location in chrome_binary_locations:
+            if location:
+                exists = "EXISTS" if os.path.isfile(location) else "NOT FOUND"
+                print(f"[DEBUG]   {location}: {exists}")
+    
+    try:
+        # Try to use ChromeDriverManager first
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        print("[DEBUG] Chrome driver initialized successfully with ChromeDriverManager")
+        return driver
+    except Exception as e:
+        print(f"[DEBUG] ChromeDriverManager failed: {e}")
+        
+        # Fallback: try environment variable path
+        chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
+        if chromedriver_path and os.path.isfile(chromedriver_path):
+            service = Service(chromedriver_path)
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            print(f"[DEBUG] Chrome driver initialized with env path: {chromedriver_path}")
+            return driver
+        
+        # Last resort: try default Chrome driver
+        driver = webdriver.Chrome(options=chrome_options)
+        print("[DEBUG] Chrome driver initialized with default options")
+        return driver
 
 def debug_url_and_event_extraction(url):
     """
@@ -73,7 +148,7 @@ def debug_url_and_event_extraction(url):
 
 def scrape_swimmer_times(url):
     """
-    Enhanced scrape swimmer times function with better debugging.
+    Enhanced scrape swimmer times function with better debugging and Render-compatible Chrome driver.
     """
     driver = None
     try:
@@ -82,26 +157,8 @@ def scrape_swimmer_times(url):
         # Debug the URL and event extraction first
         event_code, event_name = debug_url_and_event_extraction(url)
         
-        # ── Step 1: Launch Chrome headless ───────────────────────────────────
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        # Add more realistic user agent
-        options.add_argument(
-            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        )
-        # Disable images to speed up loading
-        prefs = {"profile.managed_default_content_settings.images": 2}
-        options.add_experimental_option("prefs", prefs)
-
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options
-        )
+        # ── Step 1: Launch Chrome with Render-compatible settings ───────────────────────────────────
+        driver = get_chrome_driver()
 
         # ── Step 2: Navigate and wait for content ───────────────────────────────────
         driver.get(url)
@@ -197,6 +254,8 @@ def scrape_swimmer_times(url):
 
     except Exception as e:
         print(f"[DEBUG] Exception inside scrape_swimmer_times: {e}")
+        import traceback
+        traceback.print_exc()
         raise
 
     finally:
@@ -247,8 +306,6 @@ def extract_times_from_page_text(soup, default_event="Unknown Event"):
     
     return data
 
-# Keep all your existing extraction functions but add this debug function:
-
 def debug_swimcloud_event_codes():
     """
     Helper function to debug what event codes SwimCloud actually uses.
@@ -268,7 +325,6 @@ def debug_swimcloud_event_codes():
         name = EVENT_CODE_TO_NAME.get(code, "MISSING")
         print(f"  {code} -> {name}")
 
-# Copy all your existing extraction functions here:
 def extract_swimcloud_times_table(soup, default_event="Unknown Event"):
     """
     Extract times from SwimCloud's specific table structure with robust parsing.
