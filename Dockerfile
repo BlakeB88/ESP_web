@@ -19,14 +19,14 @@ RUN apt-get update && apt-get install -y \
     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
-    && CHROME_VERSION=$(google-chrome --version | cut -d " " -f3 | cut -d "." -f1) \
-    && CHROMEDRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}) \
-    && wget -N http://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip \
-    && unzip chromedriver_linux64.zip \
-    && rm chromedriver_linux64.zip \
-    && mv chromedriver /usr/bin/chromedriver \
+    && CHROME_VERSION=$(google-chrome --version | egrep -o '[0-9]+\.[0-9]+\.[0-9]+') \
+    && wget -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" \
+    && unzip /tmp/chromedriver.zip -d /tmp/ \
+    && mv /tmp/chromedriver-linux64/chromedriver /usr/bin/chromedriver \
     && chown root:root /usr/bin/chromedriver \
     && chmod +x /usr/bin/chromedriver \
+    && rm /tmp/chromedriver.zip \
+    && rm -rf /tmp/chromedriver-linux64 \
     && apt-get purge -y --auto-remove wget gnupg unzip curl \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /tmp/* /var/tmp/*
@@ -51,7 +51,7 @@ RUN useradd --create-home --shell /bin/bash app \
 # Switch to non-root user
 USER app
 
-# Expose port
+# Expose port (Railway will assign its own port, but this is good practice)
 EXPOSE 5000
 
 # Add health check
