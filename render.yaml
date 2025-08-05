@@ -8,3 +8,7 @@ services:
     envVars:
       - key: PYTHONPATH
         value: /opt/render/project/src
+      - key: GOOGLE_CHROME_BIN
+        value: /app/.apt/usr/bin/google-chrome
+      - key: CHROMEDRIVER_PATH
+        value: /app/.chromedriver/bin/chromedriver
