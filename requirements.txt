@@ -7,3 +7,4 @@ numpy>=1.24.0
 python-dateutil>=2.8.0
 pytz>=2023.3
 selenium>=4.0.0
+webdriver-manager>=3.8.0
